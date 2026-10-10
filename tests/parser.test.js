@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeDate, normalizeAmount, detectHeader, parseRows } from '../src/parser.js';
+import { normalizeDate, normalizeAmount, detectHeader, parseRows, negateCancel } from '../src/parser.js';
 
 test('normalizeDate: 여러 형식', () => {
   assert.equal(normalizeDate('2026.04.03'), '2026-04-03');
@@ -54,7 +54,8 @@ test('parseRows: 취소/외화/읽지 못한 행', () => {
   assert.equal(a.merchant, '스타벅스');
   assert.equal(a.amount, 4800);
   assert.equal(a.account, '신한카드');
-  assert.equal(c.canceled, true);
+  assert.equal(c.canceled, false); // 취소는 마이너스 금액으로 원래 결제와 상쇄한다
+  assert.ok(c.amount < 0);
   assert.equal(d.estimated, true);
   assert.ok(d.amount > 0);
   // 빈 날짜의 '합계' 행과 '날짜없음' 행은 조용히 버리지 않고 사유를 남긴다
@@ -96,4 +97,16 @@ test('parseRows: 할부개월 열을 읽는다', () => {
   const r = parseRows(rows, { account: 'c', source: 's' });
   assert.equal(r.transactions[0].installmentMonths, 3);
   assert.equal(r.transactions[1].installmentMonths, undefined);
+});
+
+test("negateCancel: '(취소)' 표기와 마이너스 금액을 상쇄용 음수로 바꾼다", () => {
+  const a = negateCancel({ merchant: '엘지유플러스(취소)', amount: 6000000, canceled: false });
+  assert.equal(a.merchant, '엘지유플러스');
+  assert.equal(a.amount, -6000000);
+  assert.equal(a.canceled, false);
+  const b = negateCancel({ merchant: '쿠팡', amount: 12000, canceled: true });
+  assert.equal(b.amount, -12000);
+  const c = negateCancel({ merchant: '쿠팡', amount: 12000, canceled: false });
+  assert.equal(c.amount, 12000);
+  assert.equal(negateCancel(a).amount, -6000000); // 두 번 적용해도 같다
 });

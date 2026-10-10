@@ -12,6 +12,15 @@ const HEADER_WORDS = {
   merchant: /가맹점|적요|내용|거래처|이용처|사용처|상호/,
 };
 
+// 취소 거래는 마이너스 금액으로 바꿔 원래 결제와 상쇄시킨다(가맹점 이름 뒤 '(취소)'는 떼어 같은 카테고리로 묶는다).
+const CANCEL_MARK = /\s*[(\[]\s*(승인)?취소\s*[)\]]\s*$|\s+취소\s*$/;
+export function negateCancel(t) {
+  const marked = CANCEL_MARK.test(t.merchant || '');
+  if (!marked && !t.canceled) return t;
+  const { canceled, ...rest } = t;
+  return { ...rest, merchant: (t.merchant || '').replace(CANCEL_MARK, '').trim(), amount: -Math.abs(t.amount), canceled: false };
+}
+
 const validYmd = (y, m, d) => m >= 1 && m <= 12 && d >= 1 && d <= daysInMonth(y, m) ? ymd(y, m, d) : null;
 
 export function normalizeDate(v) {
@@ -95,6 +104,7 @@ export function parseRows(rows, { mapping, account, source }) {
     }
     if (amount === null) { skip('금액을 읽을 수 없음'); continue; }
     if (c.cancel !== undefined && String(row[c.cancel] ?? '').includes('취소')) canceled = true;
+    if (canceled && direction === 'in') canceled = false; // 입금 쪽 취소 표시는 지출 상쇄가 아니다
 
     const tx = {
       date, merchant: String(row[c.merchant] ?? '').trim(), amount, currency: 'KRW',
@@ -103,7 +113,7 @@ export function parseRows(rows, { mapping, account, source }) {
     if (estimated) tx.estimated = true;
     const months = c.installment !== undefined ? parseInt(row[c.installment], 10) : NaN;
     if (months > 1) tx.installmentMonths = months;
-    transactions.push(tx);
+    transactions.push(direction === 'out' ? negateCancel(tx) : tx);
   }
   return { transactions, skipped, needsMapping: false };
 }

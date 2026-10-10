@@ -12,7 +12,7 @@ export const SPEND_CUT_RATE = 0.1;
 export const KINDS = ['expense', 'cardPayment', 'saving', 'income'];
 export const CATEGORIES = [
   '식비', '카페', '배달', '교통', '쇼핑', '구독', '의료', '주거·공과금',
-  '통신', '보험', '문화·여가', '여행', '교육', '경조사·선물', '기타',
+  '통신', '보험', '문화·여가', '여행', '교육', '경조사·선물', '생활', '기타',
 ];
 
 // 외화 거래는 이 고정 환율로 추정해서 원화로 바꾸고 estimated 표시를 한다.

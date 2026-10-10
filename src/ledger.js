@@ -29,7 +29,7 @@ export function splitInstallments(txs) {
     const base = Math.floor(t.amount / n), rest = t.amount - base * n;
     return Array.from({ length: n }, (_, i) => {
       const { installmentMonths, ...piece } = t;
-      return { ...piece, date: addMonthsClip(t.date, i), amount: base + (i === 0 ? rest : 0) };
+      return { ...piece, date: addMonthsClip(t.date, i), amount: base + (i === 0 ? rest : 0), origin: t };
     });
   });
 }

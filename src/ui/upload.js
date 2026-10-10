@@ -8,9 +8,28 @@ const FIELDS = [
   ['withdraw', '출금 열', false], ['deposit', '입금 열', false], ['cancel', '취소 표시 열', false], ['installment', '할부개월 열', false],
 ];
 
+// 파일 이름에서 날짜·번호를 떼어 같은 카드의 월별 파일이 한 계좌로 합쳐지게 한다.
+// 예: '삼성카드_이용내역_202609.xlsx' → '삼성카드_이용내역'
+export function accountFromFileName(name) {
+  const base = name.replace(/\.[^.]+$/, '');
+  const cleaned = base.replace(/\(\d+\)/g, '').replace(/\d+/g, '').replace(/[\s_\-.~]+/g, ' ').trim().replace(/ /g, '_');
+  return cleaned || base;
+}
+
+// CSV는 카드사마다 UTF-8 또는 EUC-KR(CP949)이라 직접 글자 코드를 판별해서 읽는다.
+function decodeText(buf) {
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+  catch { return new TextDecoder('euc-kr').decode(buf); }
+}
+
 async function readRows(file) {
-  const wb = XLSX.read(await file.arrayBuffer(), { cellDates: true });
-  return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: '' });
+  const buf = await file.arrayBuffer();
+  const wb = /\.(csv|txt)$/i.test(file.name)
+    ? XLSX.read(decodeText(buf), { type: 'string', cellDates: true })
+    : XLSX.read(buf, { cellDates: true });
+  // 시트가 여러 장이면 머리글이 읽히는 첫 시트를 쓴다(요약 시트가 앞에 있는 파일 대비).
+  const sheets = wb.SheetNames.map((n) => XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' }));
+  return sheets.find((rows) => detectHeader(rows)) || sheets[0] || [];
 }
 
 export function render(el, ctx) {
@@ -35,7 +54,7 @@ export function render(el, ctx) {
     const list = [...files];
     for (const f of list) {
       const typed = accountInput.value.trim();
-      queue.push({ file: f, account: list.length === 1 && typed ? typed : f.name.replace(/\.[^.]+$/, '') });
+      queue.push({ file: f, account: list.length === 1 && typed ? typed : accountFromFileName(f.name) });
     }
     next();
   }

@@ -59,3 +59,9 @@ ol.todo { margin: 6px 0 0; padding-left: 22px; } ol.todo li { margin: 4px 0; }
 .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
 .split > div { border: 2px solid var(--ink); border-radius: 12px; padding: 12px; }
 @media (max-width: 600px) { .wide-field { grid-template-columns: 1fr; } }
+
+table.center th, table.center td { text-align: center; vertical-align: middle; }
+.memo-btn { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 10px; font-size: 13px; }
+.memo-dialog { border: 2px solid var(--ink); border-radius: 14px; padding: 18px 20px; width: min(480px, 92vw); background: #fff; color: var(--ink); }
+.memo-dialog::backdrop { background: rgba(0, 0, 0, .35); }
+.memo-dialog textarea { width: 100%; font: inherit; font-size: 15px; padding: 8px 10px; border: 2px solid var(--ink); border-radius: 8px; resize: vertical; }

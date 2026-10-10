@@ -1,5 +1,7 @@
 import { loadState, saveState } from './db.js';
 import { h } from './ui/dom.js';
+import { negateCancel } from './parser.js';
+import { classify } from './classifier.js';
 import * as upload from './ui/upload.js';
 import * as ledgerTab from './ui/ledgerTab.js';
 import * as leaksTab from './ui/leaksTab.js';
@@ -42,9 +44,19 @@ const ctx = {
 };
 
 export function normalize(d) {
+  const rules = { categories: {}, mappings: {}, keywords: {}, ...(d.rules || {}) };
+  // 예전에 저장된 취소 거래도 마이너스 금액으로 바로잡고, 분류가 비어 있는 지출은 현재 규칙으로 다시 분류한다.
+  const transactions = (d.transactions || []).map((raw) => {
+    const t = raw.kind === 'expense' || raw.kind === undefined ? negateCancel(raw) : raw;
+    if (t.kind === 'expense' && !t.category) {
+      const c = classify(t, rules);
+      if (c.kind === 'expense' && c.category) return { ...t, category: c.category };
+    }
+    return t;
+  });
   return {
-    transactions: d.transactions || [],
-    rules: { categories: {}, mappings: {}, ...(d.rules || {}) },
+    transactions,
+    rules,
     settings: { ...DEFAULT_SETTINGS, ...(d.settings || {}), cardRule: { ...DEFAULT_SETTINGS.cardRule, ...(d.settings?.cardRule || {}) } },
   };
 }
