@@ -10,6 +10,7 @@ import * as taxTab from './ui/taxTab.js';
 import * as splitTab from './ui/splitTab.js';
 import * as briefingTab from './ui/briefingTab.js';
 import * as settings from './ui/settings.js';
+import { initThemeButton } from './theme.js';
 
 const TABS = [
   ['ledger', '① 가계부', ledgerTab], ['leaks', '② 새는 돈', leaksTab], ['card', '③ 카드 실적', cardTab],
@@ -75,6 +76,7 @@ function render() {
 }
 
 // 업로드 상자는 탭을 바꿔도 다시 그리지 않는다(여러 파일을 올리는 중이어도 대기열이 유지되게).
+initThemeButton(document.getElementById('btn-theme'));
 upload.render(document.getElementById('drop-area'), ctx);
 document.getElementById('btn-demo').addEventListener('click', () => settings.loadDemo(ctx));
 document.getElementById('btn-export').addEventListener('click', () => {
