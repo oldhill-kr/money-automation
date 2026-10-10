@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>돈 관리 자동화</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header>
+    <h1>돈 관리 자동화</h1>
+    <p class="muted">카드·은행에서 내려받은 엑셀만 올리세요. 데이터는 이 컴퓨터의 브라우저 안에만 저장되고 밖으로 나가지 않습니다. 비밀번호·인증서는 입력하지 마세요.</p>
+    <nav id="tabs"></nav>
+  </header>
+  <div id="alert" class="alert hidden"></div>
+  <main id="view"></main>
+  <script src="vendor/xlsx.full.min.js"></script>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
