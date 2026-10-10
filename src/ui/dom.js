@@ -26,3 +26,6 @@ export function download(filename, blob) {
   a.click();
   a.remove();
 }
+
+// null/false 항목은 건너뛰고 붙인다(el.append에 그대로 넘기면 "null" 글자가 찍힌다).
+export const put = (el, ...kids) => el.append(...kids.flat().filter((k) => k != null && k !== false));

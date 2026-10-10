@@ -46,3 +46,11 @@ test('주간 브리핑: 9/28(월) 기준 지난주 생활비와 다음 7일 고�
   assert.deepEqual(b.upcomingFixed.map((x) => [x.merchant, x.date]), [['Claude subscription', '2026-09-30'], ['월세', '2026-10-01']]);
   assert.equal(b.upcomingTotal, 629000);
 });
+
+test('생활비 절감 %와 비상금 개월 수를 바꿀 수 있다', () => {
+  const base = { salary: 3100000, fixedCosts: 900000, avgLiving: 1700000, leakSavings: 0, emergencyNow: 0 };
+  const p = splitPlan({ ...base, cutRate: 0.2, emergencyMonths: 6 });
+  assert.equal(p.living, 1360000);
+  assert.equal(p.emergencyGoal, (900000 + 1360000) * 6);
+  assert.equal(splitPlan(base).living, 1530000); // 기본값은 10%, 3개월
+});

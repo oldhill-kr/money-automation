@@ -1,4 +1,4 @@
-import { h, won } from './dom.js';
+import { h, won, put } from './dom.js';
 import { TAX_YEAR, TAX_NOTICE, GLASSES_LIMIT, MEDICAL_THRESHOLD_RATE } from '../constants.js';
 import { medicalCandidates, classifyPharmacyItem, medicalCheck, glassesDeductible, cultureCheck } from '../yearEndTax.js';
 import { monthsCovered } from '../leaks.js';
@@ -19,7 +19,7 @@ export function render(el, ctx) {
     itemOut.textContent = v ? (classifyPharmacyItem(v) === 'medical' ? ' → 의료비로 인정' : ' → 제외 (건강기능식품·위생용품 등)') : '';
   } });
 
-  el.append(
+  put(el, 
     h('div', { class: 'notice warn' }, `${TAX_YEAR}년 기준 · ${TAX_NOTICE}`),
     h('div', { class: 'card' }, h('h2', {}, '입력'),
       num('annualSalary', '연간 총급여', '(원)'),

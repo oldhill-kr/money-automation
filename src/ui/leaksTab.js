@@ -1,4 +1,4 @@
-import { h, won, table } from './dom.js';
+import { h, won, table, put } from './dom.js';
 import { findRecurring, savings, annualCost, habitSpend, monthsCovered } from '../leaks.js';
 
 const SIGNAL = { newlyStarted: '새로 시작', priceUp: '가격 인상', duplicate: '중복 의심', small: '소액' };
@@ -7,7 +7,7 @@ export function render(el, ctx) {
   const { data } = ctx;
   const txs = data.transactions;
   if (monthsCovered(txs) < 2) {
-    el.append(h('div', { class: 'card' }, '정기결제를 찾으려면 최소 2개월 치 거래가 필요합니다. 석 달 치를 올리면 더 정확합니다.'));
+    put(el, h('div', { class: 'card' }, '정기결제를 찾으려면 최소 2개월 치 거래가 필요합니다. 석 달 치를 올리면 더 정확합니다.'));
     return;
   }
   const items = findRecurring(txs).sort((a, b) => b.signals.length - a.signals.length || b.monthlyAmount - a.monthlyAmount);
@@ -21,7 +21,7 @@ export function render(el, ctx) {
   };
   const delivery = habitSpend(txs, '배달');
 
-  el.append(
+  put(el, 
     h('div', { class: 'card' },
       h('h2', {}, '매달 자동으로 나가는 돈'),
       h('p', { class: 'muted' }, '같은 가맹점이 매달 비슷한 날짜에 한 번씩 결제된 것만 정기결제로 봅니다. 할부·병원·쇼핑은 제외했어요. 결과가 이상하면 한 번 더 확인하세요. 해지는 직접 하셔야 합니다.'),

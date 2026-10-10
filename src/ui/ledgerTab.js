@@ -1,4 +1,4 @@
-import { h, won, table } from './dom.js';
+import { h, won, table, put } from './dom.js';
 import { barChart } from './chart.js';
 import { monthlyTotals, averageMonthly, splitInstallments } from '../ledger.js';
 import { learn } from '../classifier.js';
@@ -7,7 +7,7 @@ import { CATEGORIES } from '../constants.js';
 export function render(el, ctx) {
   const { data, ui } = ctx;
   if (!data.transactions.length) {
-    el.append(h('div', { class: 'card' }, '아직 거래가 없습니다. 업로드 탭에서 엑셀을 올려 주세요.'));
+    put(el, h('div', { class: 'card' }, '아직 거래가 없습니다. 위 상자에 엑셀을 끌어다 놓아 주세요.'));
     return;
   }
   const txs = ui.splitInstallments ? splitInstallments(data.transactions) : data.transactions;
@@ -20,7 +20,7 @@ export function render(el, ctx) {
 
   const unknown = [...new Set(data.transactions.filter((t) => t.kind === 'expense' && !t.category).map((t) => t.merchant))];
 
-  el.append(
+  put(el, 
     h('div', { class: 'card' },
       h('h2', {}, '월별 지출'),
       h('p', {}, '월평균 ', h('span', { class: 'big' }, won(averageMonthly(txs)))),
@@ -41,12 +41,10 @@ export function render(el, ctx) {
           data.transactions.forEach((t) => { if (t.kind === 'expense' && !t.category && t.merchant === m) t.category = e.target.value; });
           ctx.commit();
         },
-      }, h('option', { value: '' }, '고르기'), CATEGORIES.map((c) => h('option', { value: c }, c)))]))) : null,
-    h('div', { class: 'card' },
-      h('button', { class: 'ghost', onclick: () => exportLedger(txs) }, '가계부를 엑셀로 내보내기 (지출 내역)')));
+      }, h('option', { value: '' }, '고르기'), CATEGORIES.map((c) => h('option', { value: c }, c)))]))) : null);
 }
 
-function exportLedger(txs) {
+export function exportLedger(txs) {
   const rows = [['날짜', '가맹점', '금액', '카테고리', '계좌']];
   txs.filter((t) => t.kind === 'expense' && !t.canceled).sort((a, b) => a.date.localeCompare(b.date))
     .forEach((t) => rows.push([t.date, t.merchant, t.amount, t.category ?? '기타', t.account]));

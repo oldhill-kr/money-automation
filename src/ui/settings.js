@@ -1,7 +1,19 @@
-import { h, download } from './dom.js';
+import { h, download, put } from './dom.js';
 import { exportBackup, importBackup } from '../store.js';
 import { parseBenefits, formatBenefits } from '../cardPerformance.js';
 import { makeDemoTransactions } from '../../tests/fixtures.js';
+
+// 저장된 거래가 없을 때만 가상 인물 데이터를 넣는다(내 데이터와 섞이지 않게).
+export function loadDemo(ctx) {
+  const { data } = ctx;
+  if (data.transactions.length) return;
+  data.transactions = makeDemoTransactions();
+  data.settings.annualSalary = 42000000;
+  data.settings.cardRule = { name: '혼잡카드 Plus', minPrevMonthSpend: 300000, benefits: { 카페: 0.1, 배달: 0.05, 교통: 0.1 }, accounts: ['혼잡카드'] };
+  data.settings.emergencyNow = 4800000;
+  ctx.go('ledger');
+  ctx.save();
+}
 
 export function render(el, ctx) {
   const { data } = ctx;
@@ -21,10 +33,9 @@ export function render(el, ctx) {
     ctx.commit();
   } });
 
-  el.append(
+  put(el, 
     h('div', { class: 'card' }, h('h2', {}, '내 정보'),
       numField('연간 총급여', st.annualSalary || '', save((v) => { st.annualSalary = v; }), '(원) 월급 입금 내역이 없을 때와 연말정산에 씁니다'),
-      numField('현재 모은 비상금', st.emergencyNow || '', save((v) => { st.emergencyNow = v; }), '(원)'),
       numField('남는 돈 중 비상금 비율', Math.round(st.emergencyRatio * 100), save((v) => { st.emergencyRatio = Math.min(100, v) / 100; }), '(%) 나머지는 저축·투자')),
     h('div', { class: 'card' }, h('h2', {}, '카드 혜택 규칙'),
       h('p', { class: 'muted' }, '카드 상품 안내서를 보고 직접 적어 주세요.'),
@@ -39,14 +50,7 @@ export function render(el, ctx) {
         h('button', { class: 'ghost', onclick: () => importInput.click() }, '백업 불러오기'), importInput)),
     h('div', { class: 'card' }, h('h2', {}, '데모·초기화'),
       h('div', { class: 'row' },
-        h('button', { class: 'ghost', disabled: data.transactions.length > 0, onclick: () => {
-          data.transactions = makeDemoTransactions();
-          data.settings.annualSalary = 42000000;
-          data.settings.cardRule = { name: '혼잡카드 Plus', minPrevMonthSpend: 300000, benefits: { 카페: 0.1, 배달: 0.05, 교통: 0.1 }, accounts: ['혼잡카드'] };
-          data.settings.emergencyNow = 4800000;
-          ctx.go('ledger');
-          ctx.save();
-        } }, '데모 데이터로 체험 (가상 인물 3개월 치)'),
+        h('button', { class: 'ghost', disabled: data.transactions.length > 0, onclick: () => loadDemo(ctx) }, '데모 데이터로 체험 (가상 인물 3개월 치)'),
         h('button', { class: 'danger', onclick: () => {
           if (!confirm('저장된 거래·규칙·설정을 모두 지웁니다. 되돌릴 수 없어요. 백업은 하셨나요?')) return;
           ctx.setData({});

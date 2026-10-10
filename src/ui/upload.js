@@ -14,11 +14,10 @@ async function readRows(file) {
 }
 
 export function render(el, ctx) {
-  const { data } = ctx;
-  const accountInput = h('input', { type: 'text', placeholder: '카드/계좌 이름 (예: 신한카드)' });
+  const accountInput = h('input', { type: 'text', placeholder: '예: 신한카드' });
   const fileInput = h('input', { type: 'file', accept: '.xlsx,.xls,.csv', multiple: true, class: 'hidden' });
   const panel = h('div', {});
-  const drop = h('div', { class: 'drop' }, '엑셀 파일을 여기로 끌어다 놓거나 클릭해서 고르세요 (카드사·은행 이용내역)', fileInput);
+  const drop = h('div', { class: 'drop' }, h('b', {}, '📂 카드사·은행 앱에서 받은 엑셀을 여기로 끌어다 놓기'), h('span', { class: 'muted' }, '여러 개 한번에 OK · xlsx / xls / csv · 비밀번호·인증서는 필요 없어요'), fileInput);
 
   const queue = [];
   let busy = false;
@@ -47,7 +46,7 @@ export function render(el, ctx) {
   drop.addEventListener('dragleave', () => drop.classList.remove('over'));
   drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); addFiles(e.dataTransfer.files); });
 
-  function stage(rows, account, source, mapping = data.rules.mappings?.[account]) {
+  function stage(rows, account, source, mapping = ctx.data.rules.mappings?.[account]) {
     const result = parseRows(rows, { mapping, account, source });
     if (result.needsMapping) showMapping(rows, account, source);
     else showPreview(result, account, source, mapping);
@@ -91,11 +90,11 @@ export function render(el, ctx) {
 
   function showPreview(result, account, source, mapping, userMapping = false) {
     const rows = result.transactions.map((t) => {
-      const c = classify(t, data.rules);
+      const c = classify(t, ctx.data.rules);
       const { direction, ...rest } = t;
       return { ...rest, kind: c.kind, category: c.category, ...(c.isSalary !== undefined ? { isSalary: c.isSalary } : {}) };
     });
-    const { merged, added, duplicates } = mergeTransactions(data.transactions, rows);
+    const { merged, added, duplicates } = mergeTransactions(ctx.data.transactions, rows);
     const unknown = new Set(rows.filter((r) => r.kind === 'expense' && !r.category).map((r) => r.merchant)).size;
     panel.replaceChildren(h('div', { class: 'card' },
       h('h2', {}, `${source} → "${account}"`),
@@ -106,8 +105,8 @@ export function render(el, ctx) {
       rows.some((r) => r.estimated) ? h('p', { class: 'muted' }, '외화 결제는 고정 환율로 추정한 금액입니다.') : null,
       h('div', { class: 'row' },
         h('button', { class: 'primary', onclick: async () => {
-          data.transactions = merged;
-          if (userMapping) data.rules.mappings = { ...data.rules.mappings, [account]: mapping };
+          ctx.data.transactions = merged;
+          if (userMapping) ctx.data.rules.mappings = { ...ctx.data.rules.mappings, [account]: mapping };
           panel.replaceChildren();
           await ctx.save(); // 화면을 다시 그리지 않고 저장만: 대기 중인 다음 파일이 사라지지 않게
           if (queue.length) done(); else { busy = false; ctx.go('ledger'); }
@@ -115,18 +114,5 @@ export function render(el, ctx) {
         h('button', { class: 'ghost', onclick: () => { panel.replaceChildren(); done(); } }, '취소'))));
   }
 
-  const tx = data.transactions;
-  const accounts = new Map();
-  tx.forEach((t) => accounts.set(t.account, (accounts.get(t.account) || 0) + 1));
-  const dates = tx.map((t) => t.date).sort();
-  el.append(
-    h('div', { class: 'card' }, h('h2', {}, '엑셀 올리기'),
-      h('div', { class: 'row' }, '카드/계좌 이름 (파일 1개일 때)', accountInput),
-      h('p', { class: 'muted' }, '이름을 비우면 파일 이름을 씁니다. 같은 카드를 다시 올릴 땐 같은 이름을 쓰세요. 겹치는 기간의 거래는 자동으로 한 번만 반영됩니다.'),
-      drop, panel),
-    h('div', { class: 'card' }, h('h2', {}, '저장된 데이터'),
-      tx.length ? [
-        h('p', {}, `거래 ${tx.length}건 · ${dates[0]} ~ ${dates[dates.length - 1]}`),
-        table(['카드/계좌', '건수'], [...accounts].map(([a, n]) => [a, n])),
-      ] : h('p', { class: 'muted' }, '아직 없습니다. 설정 탭에서 데모 데이터로 먼저 체험할 수도 있어요.')));
+  el.append(drop, h('div', { class: 'upload-extra' }, '카드/계좌 이름(파일 1개일 때):', accountInput, '비우면 파일 이름을 씁니다. 겹치는 기간의 거래는 한 번만 반영돼요.'), panel);
 }

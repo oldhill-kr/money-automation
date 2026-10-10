@@ -3,18 +3,31 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>돈 관리 자동화</title>
+  <title>돈 관리 앱</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <header>
-    <h1>돈 관리 자동화</h1>
-    <p class="muted">카드·은행에서 내려받은 엑셀만 올리세요. 데이터는 이 컴퓨터의 브라우저 안에만 저장되고 밖으로 나가지 않습니다. 비밀번호·인증서는 입력하지 마세요.</p>
+  <div class="page">
+    <header>
+      <div class="title-row">
+        <div>
+          <h1><span class="hl">돈 관리 자동화 앱</span></h1>
+          <p class="sub">카드·통장 엑셀을 끌어다 놓으면 가계부·새는 돈·카드·통장 쪼개기·주간 브리핑까지</p>
+        </div>
+        <span class="lock">🔒 파일은 내 컴퓨터 밖으로 나가지 않아요</span>
+      </div>
+    </header>
+    <div id="alert" class="alert hidden"></div>
+    <section id="drop-area"></section>
+    <div class="actions">
+      <button id="btn-demo" class="chip">예시 데이터로 먼저 보기(가상 인물 김혼잡)</button>
+      <button id="btn-export" class="chip">가계부 엑셀로 저장</button>
+      <span id="count" class="muted"></span>
+    </div>
     <nav id="tabs"></nav>
-  </header>
-  <div id="alert" class="alert hidden"></div>
-  <main id="view"></main>
+    <main id="view"></main>
+  </div>
   <script src="vendor/xlsx.full.min.js"></script>
   <script type="module" src="src/main.js"></script>
 </body>

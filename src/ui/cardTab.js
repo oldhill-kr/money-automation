@@ -1,21 +1,21 @@
-import { h, won, table } from './dom.js';
+import { h, won, table, put } from './dom.js';
 import { cardReport, formatBenefits } from '../cardPerformance.js';
 
 export function render(el, ctx) {
   const { data, ui } = ctx;
   const rule = data.settings.cardRule;
   if (!rule.accounts.length) {
-    el.append(h('div', { class: 'card' },
+    put(el, h('div', { class: 'card' },
       h('h2', {}, '카드 혜택 규칙이 필요해요'),
       h('p', {}, '설정 탭에서 카드 이름, 전월 실적 기준, 카테고리별 혜택률, 이 카드로 쓰는 계좌 이름을 입력해 주세요.'),
       h('button', { class: 'primary', onclick: () => ctx.go('settings') }, '설정으로 가기')));
     return;
   }
   const months = [...new Set(data.transactions.map((t) => t.date.slice(0, 7)))].sort();
-  if (!months.length) { el.append(h('div', { class: 'card' }, '거래가 없습니다.')); return; }
+  if (!months.length) { put(el, h('div', { class: 'card' }, '거래가 없습니다.')); return; }
   const month = months.includes(ui.cardMonth) ? ui.cardMonth : months[months.length - 1];
   const r = cardReport(data.transactions, rule, month);
-  el.append(
+  put(el, 
     h('div', { class: 'card' },
       h('div', { class: 'row' }, h('h2', { style: 'margin:0' }, `${rule.name || '내 카드'} 실적`),
         h('select', { onchange: (e) => { ui.cardMonth = e.target.value; ctx.go('card'); } },
