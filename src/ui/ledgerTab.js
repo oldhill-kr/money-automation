@@ -3,6 +3,7 @@ import { barChart, compositionChart } from './chart.js';
 import { monthlyTotals, averageMonthly, splitInstallments } from '../ledger.js';
 import { unclassifiedCard } from './classifyCards.js';
 import { learn, merchantKey } from '../classifier.js';
+import { DEFAULT_SORT, nextSort, sortRows } from '../sortRows.js';
 import { CATEGORIES, categoryColor, ACCOUNT_COLORS } from '../constants.js';
 
 export function render(el, ctx) {
@@ -148,12 +149,24 @@ function buildDetailCard(ctx, expenses, month) {
     let list = searching
       ? expenses.filter((t) => { const text = searchText(t); return terms.every((w) => text.includes(w)); })
       : expenses.filter((t) => t.date.startsWith(month));
-    list = [...list].sort((a, b) => b.date.localeCompare(a.date) || b.amount - a.amount);
+    const sort = ui.sort || DEFAULT_SORT;
+    list = sortRows(list, sort);
     const net = list.filter((t) => !t.canceled).reduce((s, t) => s + t.amount, 0);
     title.textContent = searching ? `검색 결과 ${list.length}건` : `${month} 지출 내역 ${list.length}건`;
     summary.textContent = (searching ? `전체 기간에서 찾았습니다 · ` : '') + `합계 ${won(net)} · 취소 거래는 마이너스 금액으로 원래 결제와 상쇄됩니다. 메모 칸에 적으면 검색됩니다.`;
     const shown = list.slice(0, MAX_ROWS);
-    const detailTable = table(['날짜', '가맹점', '금액', '카테고리', '카드/계좌', '메모'], shown.map((t) => [
+    // 열 이름을 누르면 그 열 기준으로 오름차순/내림차순이 바뀌고, 현재 상태는 화살표로 보여 준다.
+    const heads = [['date', '날짜'], ['merchant', '가맹점'], ['amount', '금액'], ['category', '카테고리'], ['account', '카드/계좌'], ['memo', '메모']]
+      .map(([key, label]) => {
+        const on = sort.key === key;
+        return h('button', {
+          class: `sort-btn${on ? ' on' : ''}`, type: 'button',
+          title: on ? (sort.dir === 'asc' ? '오름차순 (누르면 내림차순)' : '내림차순 (누르면 오름차순)') : '누르면 오름차순 정렬',
+          'aria-sort': on ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none',
+          onclick: () => { ui.sort = nextSort(sort, key); draw(); },
+        }, label, h('span', { class: 'arrow' }, on ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'));
+      });
+    const detailTable = table(heads, shown.map((t) => [
         t.date, t.merchant + (t.amount < 0 ? ' (취소)' : ''), won(t.amount), 
         h('select', { class: 'cat-select', style: `--c:${categoryColor(t.category ?? '기타')}`, onchange: (e) => changeCategory(t, e.target.value) },
           h('option', { value: '', selected: !t.category }, '미분류(기타)'),
