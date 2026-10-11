@@ -4,11 +4,16 @@ import { parseBenefits, formatBenefits } from '../cardPerformance.js';
 import { makeDemoTransactions } from '../../tests/fixtures.js';
 import { MODES, connectFolder, reconnect, useBrowserOnly } from '../syncController.js';
 import { folderSupported } from '../folderStore.js';
+import { filesCard } from './filesCard.js';
+import { keywordCard, rulesCard } from './classifyCards.js';
 
 const HINTS = {
   local: '예: C:\돈관리 처럼 새 폴더를 하나 만들어 고르세요. (바탕화면·문서·다운로드 폴더 자체나 C:\ 루트는 브라우저가 막습니다)',
   cloud: '구글 드라이브 데스크톱 앱이 깔린 PC에서 드라이브 안의 폴더(예: G:\내 드라이브\돈관리)를 고르세요. 다른 PC에서도 같은 폴더를 고르면 같은 가계부가 열립니다.',
 };
+
+// 규칙 삭제로 다시 그려져도 접히지 않게 펼쳐 둔다. 규칙이 없으면 카드가 없다.
+const openCard = (el) => { if (el) el.open = true; return el; };
 
 function storageCard(ctx) {
   const s = ctx.sync;
@@ -75,6 +80,9 @@ export function render(el, ctx) {
 
   put(el,
     storageCard(ctx),
+    filesCard(ctx, { open: true }),
+    keywordCard(ctx),
+    openCard(rulesCard(ctx)),
     h('div', { class: 'card' }, h('h2', {}, '내 정보'),
       numField('연간 총급여', st.annualSalary || '', save((v) => { st.annualSalary = v; }), '(원) 월급 입금 내역이 없을 때와 연말정산에 씁니다'),
       numField('남는 돈 중 비상금 비율', Math.round(st.emergencyRatio * 100), save((v) => { st.emergencyRatio = Math.min(100, v) / 100; }), '(%) 나머지는 저축·투자')),

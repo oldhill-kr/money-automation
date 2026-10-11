@@ -84,8 +84,10 @@ export function normalize(d) {
 
 function render() {
   const nav = document.getElementById('tabs');
-  nav.replaceChildren(...TABS.map(([id, label]) =>
+  // 설정·백업은 탭 줄 대신 오른쪽 위 버튼으로 연다.
+  nav.replaceChildren(...TABS.filter(([id]) => id !== 'settings').map(([id, label]) =>
     h('button', { class: id === ctx.ui.tab ? 'active' : '', onclick: () => ctx.go(id) }, label)));
+  document.getElementById('btn-settings').classList.toggle('on', ctx.ui.tab === 'settings');
   const tx = ctx.data.transactions;
   const dates = tx.map((t) => t.date).sort();
   document.getElementById('count').textContent = tx.length ? `${tx.length}건 · ${dates[0]} ~ ${dates[dates.length - 1]}` : '아직 불러온 거래가 없어요';
@@ -98,6 +100,7 @@ function render() {
 
 // 업로드 상자는 탭을 바꿔도 다시 그리지 않는다(여러 파일을 올리는 중이어도 대기열이 유지되게).
 initThemeButton(document.getElementById('btn-theme'));
+document.getElementById('btn-settings').addEventListener('click', () => ctx.go('settings'));
 // 파일 업로드는 버튼으로 여는 팝업 안에 둔다. 업로드가 끝나면 닫는다.
 const uploadDialog = document.getElementById('upload-dialog');
 ctx.openUpload = () => { if (!uploadDialog.open) uploadDialog.showModal(); };

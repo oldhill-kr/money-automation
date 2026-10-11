@@ -1,9 +1,8 @@
 import { h, won, table, put } from './dom.js';
 import { barChart, compositionChart } from './chart.js';
 import { monthlyTotals, averageMonthly, splitInstallments } from '../ledger.js';
-import { unclassifiedCard, rulesCard, keywordCard } from './classifyCards.js';
+import { unclassifiedCard } from './classifyCards.js';
 import { learn, merchantKey } from '../classifier.js';
-import { filesCard } from './filesCard.js';
 import { CATEGORIES, categoryColor, ACCOUNT_COLORS } from '../constants.js';
 
 export function render(el, ctx) {
@@ -79,9 +78,6 @@ export function render(el, ctx) {
         h('p', { class: 'muted' }, '막대 색은 카테고리 구성입니다. 최근 달이 위에 있습니다.'))),
     h('p', { class: 'muted' }, '카드대금·저축·받은 돈은 지출에서 제외했습니다(이중 집계 방지). 취소는 원래 결제에서 차감했습니다.'),
     detailCard,
-    filesCard(ctx),
-    rulesCard(ctx),
-    keywordCard(ctx),
     unclassifiedCard(ctx));
 }
 

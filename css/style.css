@@ -160,3 +160,5 @@ ul.insights { margin: 4px 0 0; padding-left: 20px; } ul.insights li { margin: 5p
 .choice.active { background: var(--accent-soft); border-color: var(--accent); }
 .choice:disabled { opacity: .45; cursor: not-allowed; }
 #sync-bar button { margin-left: 8px; }
+
+.chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
