@@ -2,6 +2,7 @@ import { loadState, saveState } from './db.js';
 import { h } from './ui/dom.js';
 import { negateCancel } from './parser.js';
 import { classify } from './classifier.js';
+import { MODES, initSync, pushSync, reconnect, refreshFromFolder } from './syncController.js';
 import * as upload from './ui/upload.js';
 import * as ledgerTab from './ui/ledgerTab.js';
 import * as leaksTab from './ui/leaksTab.js';
@@ -29,12 +30,30 @@ export const DEFAULT_SETTINGS = {
 const ctx = {
   data: { transactions: [], rules: { categories: {}, mappings: {} }, settings: DEFAULT_SETTINGS },
   ui: { tab: 'ledger' },
-  async save() {
+  sync: null, // initSync가 채운다: 저장 위치 모드와 폴더 핸들
+  // 브라우저 저장소는 모든 모드에서 캐시로 계속 쓴다. 폴더 모드면 이어서 폴더에도 쓴다.
+  async cache() {
     try { await saveState(ctx.data); ctx.alert(null); } catch (e) {
       ctx.alert('브라우저에 저장하지 못했습니다(시크릿 모드이거나 저장 공간이 부족할 수 있어요). 설정·백업 탭에서 백업 파일을 내려받아 두세요.');
     }
   },
-  async commit() { await ctx.save(); render(); },
+  // opts.force: 폴더의 더 새 데이터가 있어도 이 컴퓨터 데이터로 덮어쓴다(전체 삭제·백업 복원처럼 의도적인 교체).
+  async save(opts) { await ctx.cache(); await pushSync(ctx, opts); },
+  async commit(opts) { await ctx.save(opts); render(); },
+  refresh() { render(); },
+  // 상단 배지와 "연결 끊김" 안내를 현재 저장 모드에 맞춘다.
+  refreshLock() {
+    const s = ctx.sync;
+    document.getElementById('lock').textContent = MODES[s?.mode || 'browser'].lock;
+    const bar = document.getElementById('sync-bar');
+    const cut = s && s.mode !== 'browser' && s.handle && !s.connected;
+    bar.classList.toggle('hidden', !cut);
+    bar.replaceChildren();
+    if (cut) {
+      bar.append(`'${s.folderName}' 폴더 연결이 끊겼어요. 지금 고친 내용은 이 브라우저에만 저장됩니다. `,
+        h('button', { class: 'ghost', onclick: () => reconnect(ctx) }, '폴더 다시 허용'));
+    }
+  },
   alert(msg) {
     const el = document.getElementById('alert');
     el.textContent = msg || '';
@@ -98,4 +117,9 @@ try {
 } catch (e) {
   ctx.alert('저장된 데이터를 불러오지 못했습니다. 이 브라우저에서는 저장이 안 될 수 있어요.');
 }
+await initSync(ctx);
 render();
+
+// 다른 컴퓨터에서 고친 내용을 이 창으로 돌아올 때 가져온다.
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshFromFolder(ctx); });
+window.addEventListener('focus', () => refreshFromFolder(ctx));

@@ -152,3 +152,11 @@ ul.insights { margin: 4px 0 0; padding-left: 20px; } ul.insights li { margin: 5p
 .upload-dialog::backdrop { background: rgba(0, 0, 0, .4); }
 .ud-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .ud-head h2 { margin: 0; }
+
+/* ---- 저장 위치 ---- */
+.choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin: 10px 0; }
+.choice { text-align: left; border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 10px; padding: 10px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+.choice:hover { background: var(--panel-2); }
+.choice.active { background: var(--accent-soft); border-color: var(--accent); }
+.choice:disabled { opacity: .45; cursor: not-allowed; }
+#sync-bar button { margin-left: 8px; }

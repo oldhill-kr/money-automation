@@ -25,6 +25,21 @@ export async function loadState() {
   } finally { db.close(); }
 }
 
+// 저장 위치 설정(모드, 폴더 핸들, 마지막 revision)은 데이터와 별도 키에 둔다. 폴더 핸들도 IndexedDB에 담긴다.
+export async function getMeta(key) {
+  const db = await open();
+  try { return await wait(db.transaction(STORE).objectStore(STORE).get(key)); } finally { db.close(); }
+}
+
+export async function setMeta(key, value) {
+  const db = await open();
+  try {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).put(value, key);
+    await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = tx.onabort = () => rej(tx.error); });
+  } finally { db.close(); }
+}
+
 export async function saveState(state) {
   const db = await open();
   try {
