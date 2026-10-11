@@ -22,6 +22,15 @@ function decodeText(buf) {
   catch { return new TextDecoder('euc-kr').decode(buf); }
 }
 
+// SheetJS가 던지는 영어 메시지를 사용자가 할 수 있는 조치로 바꿔 준다.
+export function readFailHint(e) {
+  const m = String(e?.message || e || '');
+  if (/password|encrypt|protected/i.test(m)) return '비밀번호가 걸린 파일입니다. 엑셀에서 열어 비밀번호를 입력한 뒤 "다른 이름으로 저장"으로 비밀번호 없이 저장해서 다시 올려 주세요.';
+  if (e?.name === 'NotReadableError' || /permission|denied|access|NotReadable/i.test(m)) return '브라우저가 파일을 읽지 못했습니다. 엑셀에서 그 파일이 열려 있으면 닫고, 바탕화면이나 다운로드 폴더로 복사해서 다시 올려 주세요.';
+  if (/unsupported|not.*(recogni|valid)|corrupt|bad|zip|invalid/i.test(m)) return '엑셀 형식으로 읽을 수 없는 파일입니다. 파일이 손상됐거나 엑셀이 아닐 수 있어요. 엑셀에서 열어 .xlsx로 다시 저장해 보세요.';
+  return '파일을 읽을 수 없습니다.';
+}
+
 async function readRows(file) {
   const buf = await file.arrayBuffer();
   const wb = /\.(csv|txt)$/i.test(file.name)
@@ -36,7 +45,7 @@ export function render(el, ctx) {
   const accountInput = h('input', { type: 'text', placeholder: '예: 신한카드' });
   const fileInput = h('input', { type: 'file', accept: '.xlsx,.xls,.csv', multiple: true, class: 'hidden' });
   const panel = h('div', {});
-  const drop = h('div', { class: 'drop' }, h('b', {}, '📂 카드사·은행 앱에서 받은 엑셀을 여기로 끌어다 놓기'), h('span', { class: 'muted' }, '여러 개 한번에 OK · xlsx / xls / csv · 비밀번호·인증서는 필요 없어요'), fileInput);
+  const drop = h('div', { class: 'drop' }, h('b', {}, '📂 카드사·은행 앱에서 받은 엑셀을 여기로 끌어다 놓기'), h('span', { class: 'muted' }, '여러 개 한번에 OK · xlsx / xls / csv · 비밀번호가 걸린 파일은 엑셀에서 풀어서 저장 후 올려 주세요'), fileInput);
 
   const queue = [];
   let busy = false;
@@ -45,8 +54,17 @@ export function render(el, ctx) {
     busy = true;
     const { file, account } = queue.shift();
     panel.replaceChildren();
-    try { stage(await readRows(file), account, file.name); }
-    catch (e) { panel.append(h('div', { class: 'notice warn' }, `${file.name}: 파일을 읽을 수 없습니다.`)); done(); }
+    let rows;
+    try { rows = await readRows(file); }
+    catch (e) { console.error(e); fail(file.name, readFailHint(e), e); return; }
+    if (!rows.length) { fail(file.name, '시트에 내용이 없습니다. 다른 시트에 거래가 있거나, 빈 파일일 수 있어요.'); return; }
+    try { stage(rows, account, file.name); }
+    catch (e) { console.error(e); fail(file.name, '파일은 열었지만 거래를 정리하는 중 오류가 났습니다.', e); }
+  }
+  function fail(name, why, err) {
+    panel.append(h('div', { class: 'notice warn' }, `${name}: ${why}`,
+      err?.message ? h('div', { class: 'muted' }, `(자세한 오류: ${err.message})`) : null));
+    done();
   }
   const done = () => { busy = false; next(); };
 
@@ -140,10 +158,10 @@ export function render(el, ctx) {
     }
     panel.replaceChildren(h('div', { class: 'card' },
       h('h2', {}, `${source} → "${account}"`),
-      h('p', {}, `새로 추가 ${added}건 · 이미 있는 거래 ${duplicates}건 · 읽지 못한 행 ${result.skipped.length}개`),
+      h('p', {}, `새로 추가 ${added}건 · 이미 있는 거래 ${duplicates}건 · 제외·읽지 못한 행 ${result.skipped.length}개`),
       warn.map((w) => h('div', { class: 'notice warn' }, w)),
       unknown ? h('p', { class: 'muted' }, `분류를 모르는 가맹점 ${unknown}곳은 가계부 탭에서 한 번만 알려 주면 기억합니다.`) : null,
-      result.skipped.length ? h('details', {}, h('summary', {}, '읽지 못한 행 보기'),
+      result.skipped.length ? h('details', {}, h('summary', {}, '제외·읽지 못한 행 보기'),
         table(['행', '이유'], result.skipped.slice(0, 50).map((s) => [s.row, s.reason]))) : null,
       rows.some((r) => r.estimated) ? h('p', { class: 'muted' }, '외화 결제는 고정 환율로 추정한 금액입니다.') : null,
       h('div', { class: 'row' },

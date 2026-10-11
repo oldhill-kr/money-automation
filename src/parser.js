@@ -3,12 +3,14 @@ import { USD_KRW } from './constants.js';
 
 // 열 이름 후보. 새 카드사 양식을 지원하려면 여기에 단어만 추가하면 된다.
 const HEADER_WORDS = {
-  cancel: /취소/,
+  // '거래구분'(결제·결제취소·충전) 열도 취소/충전 표시 열로 쓴다.
+  cancel: /취소|거래구분|거래유형/,
   installment: /할부(개월|기간|월)/,
   withdraw: /출금/,
   deposit: /입금/,
   amount: /금액/,
-  date: /이용일|거래일|일자|승인일|날짜/,
+  // '거래일련번호'는 번호 열이지 날짜가 아니다.
+  date: /이용일|거래일(?!련)|일자|승인일|날짜/,
   merchant: /가맹점|적요|내용|거래처|이용처|사용처|상호/,
 };
 
@@ -103,7 +105,10 @@ export function parseRows(rows, { mapping, account, source }) {
       else if (d > 0) { amount = d; direction = 'in'; }
     }
     if (amount === null) { skip('금액을 읽을 수 없음'); continue; }
-    if (c.cancel !== undefined && String(row[c.cancel] ?? '').includes('취소')) canceled = true;
+    const mark = c.cancel !== undefined ? String(row[c.cancel] ?? '') : '';
+    // 선불·지역화폐 카드의 '충전'은 돈을 카드에 옮겨 넣은 것이라 지출이 아니다(실제 지출은 이후 결제 행).
+    if (/충전/.test(mark) && !/취소/.test(mark)) { skip('충전(카드에 돈을 넣은 것이라 지출이 아님)'); continue; }
+    if (mark.includes('취소')) canceled = true;
     if (canceled && direction === 'in') canceled = false; // 입금 쪽 취소 표시는 지출 상쇄가 아니다
 
     const tx = {
