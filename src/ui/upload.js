@@ -149,10 +149,13 @@ export function render(el, ctx) {
       h('div', { class: 'row' },
         allDuplicate ? null : h('button', { class: 'primary', onclick: async () => {
           ctx.data.transactions = merged;
+          // 방금 올린 파일의 가장 최근 달로 조회 월을 옮겨 바로 확인할 수 있게 한다.
+          const newest = fresh.filter((t) => t.kind === 'expense').map((t) => t.date.slice(0, 7)).sort().pop();
+          if (newest) ctx.ui.month = newest;
           if (userMapping) ctx.data.rules.mappings = { ...ctx.data.rules.mappings, [account]: mapping };
           panel.replaceChildren();
           await ctx.save(); // 화면을 다시 그리지 않고 저장만: 대기 중인 다음 파일이 사라지지 않게
-          if (queue.length) done(); else { busy = false; ctx.go('ledger'); }
+          if (queue.length) done(); else { busy = false; ctx.closeUpload?.(); ctx.go('ledger'); }
         } }, '반영하기'),
         h('button', { class: 'ghost', onclick: () => { panel.replaceChildren(); done(); } }, allDuplicate ? '닫기' : '취소'))));
   }

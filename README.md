@@ -13,7 +13,7 @@ python -m http.server 8000
 ## 체험하기
 
 - 상단의 "예시 데이터로 먼저 보기" 버튼 (가상 인물 3개월 치)
-- 또는 `demo/` 폴더의 엑셀 3개(혼잡카드, 체크카드, 국민은행)를 맨 위 상자에 끌어다 놓기. 다시 만들려면 `node tests/make-demo-xlsx.js`.
+- 또는 `demo/` 폴더의 엑셀 3개(혼잡카드, 체크카드, 국민은행)를 상단의 '파일 업로드' 버튼으로 연 창에 끌어다 놓기. 다시 만들려면 `node tests/make-demo-xlsx.js`.
 - 카드 실적 탭은 설정 탭에 카드 이름 `혼잡카드 Plus`, 계좌 이름 `혼잡카드`를 입력하면 보입니다(데모 버튼은 자동 입력).
 
 ## 테스트
@@ -24,7 +24,7 @@ npm test
 
 ## 구조
 
-- `src/` 계산 모듈(parser, store, classifier, ledger, leaks, cardPerformance, yearEndTax, accountSplit, briefing)은 화면과 무관한 순수 코드입니다.
+- `src/` 계산 모듈(parser, store, classifier, ledger, leaks, cardPerformance, yearEndTax, accountSplit, monthlyBriefing)은 화면과 무관한 순수 코드입니다.
 - `src/ui/` 화면, `src/db.js` IndexedDB 저장.
 - `src/constants.js` 세법 수치와 기준 연도(해마다 확인하세요).
 - `vendor/xlsx.full.min.js` SheetJS 0.20.3 (외부 CDN을 쓰지 않습니다).

@@ -25,13 +25,6 @@ export function render(el, ctx) {
   const month = totals.some((t) => t.month === ui.month) ? ui.month : totals[totals.length - 1].month;
   const row = totals.find((t) => t.month === month);
 
-  const monthSel = h('select', { onchange: (e) => { ui.month = e.target.value; ctx.go('ledger'); } },
-    totals.map((t) => h('option', { value: t.month, selected: t.month === month }, t.month)));
-
-  const accountSel = h('select', { onchange: (e) => { ui.account = e.target.value; ctx.go('ledger'); } },
-    h('option', { value: '' }, '전체 (통합)'),
-    accounts.map((a) => h('option', { value: a, selected: a === ui.account }, a)));
-
   // 선택한 달의 카드/계좌별 합계(통합 보기에서 카드별로 얼마씩 썼는지)
   const monthSpend = txs.filter((t) => t.kind === 'expense' && !t.canceled && t.date.startsWith(month));
   const byAccount = new Map();
@@ -57,13 +50,6 @@ export function render(el, ctx) {
   }));
 
   put(el,
-    h('div', { class: 'card' },
-      h('div', { class: 'row', style: 'margin:0' },
-        h('h2', { style: 'margin:0' }, '가계부'), accountSel, monthSel,
-        h('span', { class: 'muted' }, ui.account ? `${ui.account}만 보는 중` : `${accounts.length}개 카드/계좌 합산`),
-        h('label', { class: 'muted', style: 'margin-left:auto' },
-          h('input', { type: 'checkbox', checked: !!ui.splitInstallments, onchange: (e) => { ui.splitInstallments = e.target.checked; ctx.go('ledger'); } }),
-          ' 할부 나누기'))),
     h('div', { class: 'kpis' },
       kpi(`${month} 지출`, won(row.total), `${spendCount}건`, 'var(--accent)'),
       kpi('전월 대비', diff === null ? '-' : `${diff > 0 ? '+' : ''}${won(diff)}`,

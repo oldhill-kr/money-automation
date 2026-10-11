@@ -13,13 +13,11 @@ export function render(el, ctx) {
   }
   const months = [...new Set(data.transactions.map((t) => t.date.slice(0, 7)))].sort();
   if (!months.length) { put(el, h('div', { class: 'card' }, '거래가 없습니다.')); return; }
-  const month = months.includes(ui.cardMonth) ? ui.cardMonth : months[months.length - 1];
+  const month = months.includes(ui.month) ? ui.month : months[months.length - 1];
   const r = cardReport(data.transactions, rule, month);
   put(el, 
     h('div', { class: 'card' },
-      h('div', { class: 'row' }, h('h2', { style: 'margin:0' }, `${rule.name || '내 카드'} 실적`),
-        h('select', { onchange: (e) => { ui.cardMonth = e.target.value; ctx.go('card'); } },
-          months.map((m) => h('option', { value: m, selected: m === month }, m)))),
+      h('div', { class: 'row' }, h('h2', { style: 'margin:0' }, `${rule.name || '내 카드'} ${month} 실적`)),
       h('p', { class: 'muted' }, `혜택: ${formatBenefits(rule.benefits)} · 전월 실적 ${won(rule.minPrevMonthSpend)} 이상`),
       h('p', {}, `전월 ${won(r.spent)} 사용 → `, h('b', { class: r.met ? 'good' : 'bad' }, r.met ? '이번 달 혜택 대상' : `실적까지 ${won(r.remaining)} 부족`)),
       r.met ? [

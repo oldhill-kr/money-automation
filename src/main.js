@@ -8,14 +8,14 @@ import * as leaksTab from './ui/leaksTab.js';
 import * as cardTab from './ui/cardTab.js';
 import * as taxTab from './ui/taxTab.js';
 import * as splitTab from './ui/splitTab.js';
-import * as briefingTab from './ui/briefingTab.js';
 import * as monthlyTab from './ui/monthlyBriefingTab.js';
 import * as settings from './ui/settings.js';
 import { initThemeButton } from './theme.js';
+import { renderToolbar } from './ui/toolbar.js';
 
 const TABS = [
   ['ledger', '① 가계부', ledgerTab], ['leaks', '② 새는 돈', leaksTab], ['card', '③ 카드 실적', cardTab],
-  ['tax', '④ 연말정산', taxTab], ['split', '⑤ 통장 쪼개기', splitTab], ['briefing', '⑥ 주간 브리핑', briefingTab], ['monthly', '⑦ 월간 브리핑', monthlyTab],
+  ['tax', '④ 연말정산', taxTab], ['split', '⑤ 통장 쪼개기', splitTab], ['monthly', '⑥ 월간 브리핑', monthlyTab],
   ['settings', '설정·백업', settings],
 ];
 
@@ -71,6 +71,7 @@ function render() {
   const dates = tx.map((t) => t.date).sort();
   document.getElementById('count').textContent = tx.length ? `${tx.length}건 · ${dates[0]} ~ ${dates[dates.length - 1]}` : '아직 불러온 거래가 없어요';
   document.getElementById('btn-demo').disabled = tx.length > 0;
+  renderToolbar(document.getElementById('toolbar'), ctx);
   const view = document.getElementById('view');
   view.replaceChildren();
   TABS.find(([id]) => id === ctx.ui.tab)[2].render(view, ctx);
@@ -78,6 +79,12 @@ function render() {
 
 // 업로드 상자는 탭을 바꿔도 다시 그리지 않는다(여러 파일을 올리는 중이어도 대기열이 유지되게).
 initThemeButton(document.getElementById('btn-theme'));
+// 파일 업로드는 버튼으로 여는 팝업 안에 둔다. 업로드가 끝나면 닫는다.
+const uploadDialog = document.getElementById('upload-dialog');
+ctx.openUpload = () => { if (!uploadDialog.open) uploadDialog.showModal(); };
+ctx.closeUpload = () => { if (uploadDialog.open) uploadDialog.close(); };
+document.getElementById('ud-close').addEventListener('click', ctx.closeUpload);
+uploadDialog.addEventListener('click', (e) => { if (e.target === uploadDialog) ctx.closeUpload(); });
 upload.render(document.getElementById('drop-area'), ctx);
 document.getElementById('btn-demo').addEventListener('click', () => settings.loadDemo(ctx));
 document.getElementById('btn-export').addEventListener('click', () => {

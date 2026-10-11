@@ -21,13 +21,8 @@ export function render(el, ctx) {
       h('button', { class: 'ghost', onclick: () => { ui.account = ''; ctx.go('monthly'); } }, '전체 보기')));
     return;
   }
-  const month = months.includes(ui.briefMonth) ? ui.briefMonth : months[months.length - 1];
+  const month = months.includes(ui.month) ? ui.month : months[months.length - 1];
   const b = monthlyBriefing(txs, month);
-
-  const monthSel = h('select', { onchange: (e) => { ui.briefMonth = e.target.value; ctx.go('monthly'); } },
-    [...months].reverse().map((m) => h('option', { value: m, selected: m === month }, m)));
-  const accountSel = h('select', { onchange: (e) => { ui.account = e.target.value; ctx.go('monthly'); } },
-    h('option', { value: '' }, '전체 (통합)'), accounts.map((a) => h('option', { value: a, selected: a === ui.account }, a)));
 
   const reportText = () => [
     `[${month} 월간 브리핑${ui.account ? ` · ${ui.account}` : ''}]`,
@@ -50,8 +45,8 @@ export function render(el, ctx) {
 
   put(el,
     h('div', { class: 'card' },
-      h('div', { class: 'row', style: 'margin:0' }, h('h2', { style: 'margin:0' }, '월간 브리핑'), monthSel, accountSel,
-        h('span', { class: 'muted' }, `${b.count}건`), h('span', { style: 'margin-left:auto' }, copyBtn))),
+      h('div', { class: 'row', style: 'margin:0' }, h('h2', { style: 'margin:0' }, `${month} 월간 브리핑`),
+        h('span', { class: 'muted' }, `${ui.account || '전체 카드/계좌'} · ${b.count}건`), h('span', { style: 'margin-left:auto' }, copyBtn))),
 
     h('div', { class: 'kpis' },
       kpi(`${month} 지출`, won(b.total), `${b.count}건`, 'var(--accent)'),
