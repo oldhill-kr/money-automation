@@ -9,12 +9,13 @@ import * as cardTab from './ui/cardTab.js';
 import * as taxTab from './ui/taxTab.js';
 import * as splitTab from './ui/splitTab.js';
 import * as briefingTab from './ui/briefingTab.js';
+import * as monthlyTab from './ui/monthlyBriefingTab.js';
 import * as settings from './ui/settings.js';
 import { initThemeButton } from './theme.js';
 
 const TABS = [
   ['ledger', '① 가계부', ledgerTab], ['leaks', '② 새는 돈', leaksTab], ['card', '③ 카드 실적', cardTab],
-  ['tax', '④ 연말정산', taxTab], ['split', '⑤ 통장 쪼개기', splitTab], ['briefing', '⑥ 주간 브리핑', briefingTab],
+  ['tax', '④ 연말정산', taxTab], ['split', '⑤ 통장 쪼개기', splitTab], ['briefing', '⑥ 주간 브리핑', briefingTab], ['monthly', '⑦ 월간 브리핑', monthlyTab],
   ['settings', '설정·백업', settings],
 ];
 

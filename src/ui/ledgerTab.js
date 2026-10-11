@@ -72,21 +72,25 @@ export function render(el, ctx) {
       kpi('월평균', won(averageMonthly(txs)), `${totals.length}개월 기준`, 'var(--amber)'),
       topCat ? kpi('가장 큰 카테고리', topCat[0], `${won(topCat[1])} · ${((topCat[1] / row.total) * 100).toFixed(0)}%`, categoryColor(topCat[0]))
         : kpi('가장 큰 카테고리', '-', null, 'var(--faint)')),
-    h('div', { class: 'grid3' },
-      h('div', { class: 'card' },
-        h('h2', {}, `${month} 카테고리별`),
-        cats.length ? compositionChart(cats.map(([label, value]) => ({ label, value, color: categoryColor(label) })), { format: won, limit: 6, compact: true })
-          : h('p', { class: 'muted' }, '이 달에는 지출이 없습니다.'),
-        h('p', { class: 'muted' }, `합계 ${won(row.total)}`)),
-      h('div', { class: 'card' },
+    // 왼쪽: 카테고리별 + 카드/계좌별(높이 고정), 오른쪽: 월별 지출(왼쪽 두 카드 높이 합과 같고, 넘치면 스크롤)
+    h('div', { class: 'board' },
+      h('div', { class: 'board-left' },
+        h('div', { class: 'card fixed fixed-cat' },
+          h('h2', {}, `${month} 카테고리별`),
+          cats.length ? compositionChart(cats.map(([label, value]) => ({ label, value, color: categoryColor(label) })), { format: won, limit: 6, compact: true })
+            : h('p', { class: 'muted' }, '이 달에는 지출이 없습니다.'),
+          h('p', { class: 'muted' }, `합계 ${won(row.total)}`)),
+        h('div', { class: 'card fixed fixed-acct' },
+          h('h2', {}, `${month} 카드/계좌별`),
+          byAccount.size
+            ? barChart([...byAccount.entries()].sort((a, b) => b[1] - a[1]).map(([label, value]) => ({
+              label, value, color: ACCOUNT_COLORS[accounts.indexOf(label) % ACCOUNT_COLORS.length],
+            })), { format: won })
+            : h('p', { class: 'muted' }, '이 달에는 지출이 없습니다.'))),
+      h('div', { class: 'card fixed fixed-month' },
         h('h2', {}, '월별 지출'),
-        barChart(monthRows, { format: won }),
-        h('p', { class: 'muted' }, '막대 색은 카테고리 구성입니다.')),
-      !ui.account && accountNames.length > 1 ? h('div', { class: 'card' },
-        h('h2', {}, `${month} 카드/계좌별`),
-        barChart([...byAccount.entries()].sort((a, b) => b[1] - a[1]).map(([label, value]) => ({
-          label, value, color: ACCOUNT_COLORS[accounts.indexOf(label) % ACCOUNT_COLORS.length],
-        })), { format: won })) : null),
+        barChart([...monthRows].reverse(), { format: won }),
+        h('p', { class: 'muted' }, '막대 색은 카테고리 구성입니다. 최근 달이 위에 있습니다.'))),
     h('p', { class: 'muted' }, '카드대금·저축·받은 돈은 지출에서 제외했습니다(이중 집계 방지). 취소는 원래 결제에서 차감했습니다.'),
     detailCard,
     filesCard(ctx),
