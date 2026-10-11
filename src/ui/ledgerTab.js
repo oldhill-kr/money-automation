@@ -1,9 +1,9 @@
 import { h, won, table, put } from './dom.js';
-import { barChart } from './chart.js';
+import { barChart, compositionChart } from './chart.js';
 import { monthlyTotals, averageMonthly, splitInstallments } from '../ledger.js';
 import { unclassifiedCard, rulesCard, keywordCard } from './classifyCards.js';
 import { learn, merchantKey } from '../classifier.js';
-import { CATEGORIES } from '../constants.js';
+import { CATEGORIES, categoryColor, ACCOUNT_COLORS } from '../constants.js';
 
 export function render(el, ctx) {
   const { data, ui } = ctx;
@@ -38,24 +38,54 @@ export function render(el, ctx) {
   const expenses = txs.filter((t) => t.kind === 'expense');
   const detailCard = buildDetailCard(ctx, expenses, month);
 
-  put(el, 
+  // 요약 타일: 이번 달 지출, 전월 대비, 월평균, 가장 큰 카테고리
+  const idx = totals.findIndex((t) => t.month === month);
+  const prev = idx > 0 ? totals[idx - 1] : null;
+  const diff = prev ? row.total - prev.total : null;
+  const pct = prev && prev.total > 0 ? (diff / prev.total) * 100 : null;
+  const cats = Object.entries(row.byCategory).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const topCat = cats[0];
+  const spendCount = monthSpend.length;
+  const kpi = (label, value, sub, color) => h('div', { class: 'kpi', style: color ? `--kc:${color}` : null },
+    h('div', { class: 'k-label' }, label), h('div', { class: 'k-value' }, value), sub ? h('div', { class: 'k-sub' }, sub) : null);
+
+  const accountNames = [...byAccount.keys()];
+  const monthRows = totals.map((t) => ({
+    label: t.month, value: t.total, selected: t.month === month,
+    segments: Object.entries(t.byCategory).sort((a, b) => b[1] - a[1]).map(([label, value]) => ({ label, value, color: categoryColor(label) })),
+  }));
+
+  put(el,
     h('div', { class: 'card' },
-      h('div', { class: 'row' }, h('h2', { style: 'margin:0' }, '카드/계좌'), accountSel,
-        h('span', { class: 'muted' }, ui.account ? `${ui.account}만 보는 중` : `${accounts.length}개 합산`)),
-      !ui.account && byAccount.size > 1 ? [
-        h('p', { class: 'muted' }, `${month} 카드/계좌별 지출`),
-        barChart([...byAccount.entries()].sort((a, b) => b[1] - a[1]).map(([label, value]) => ({ label, value })), { format: won }),
-      ] : null),
+      h('div', { class: 'row', style: 'margin:0' },
+        h('h2', { style: 'margin:0' }, '가계부'), accountSel, monthSel,
+        h('span', { class: 'muted' }, ui.account ? `${ui.account}만 보는 중` : `${accounts.length}개 카드/계좌 합산`),
+        h('label', { class: 'muted', style: 'margin-left:auto' },
+          h('input', { type: 'checkbox', checked: !!ui.splitInstallments, onchange: (e) => { ui.splitInstallments = e.target.checked; ctx.go('ledger'); } }),
+          ' 할부 나누기'))),
+    h('div', { class: 'kpis' },
+      kpi(`${month} 지출`, won(row.total), `${spendCount}건`, 'var(--accent)'),
+      kpi('전월 대비', diff === null ? '-' : `${diff > 0 ? '+' : ''}${won(diff)}`,
+        pct === null ? '비교할 이전 달이 없어요' : h('span', {}, h('b', { class: diff > 0 ? 'up' : 'down' }, `${diff > 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(1)}%`), ` · ${prev.month} ${won(prev.total)}`),
+        diff === null ? 'var(--faint)' : diff > 0 ? 'var(--red)' : 'var(--green)'),
+      kpi('월평균', won(averageMonthly(txs)), `${totals.length}개월 기준`, 'var(--amber)'),
+      topCat ? kpi('가장 큰 카테고리', topCat[0], `${won(topCat[1])} · ${((topCat[1] / row.total) * 100).toFixed(0)}%`, categoryColor(topCat[0]))
+        : kpi('가장 큰 카테고리', '-', null, 'var(--faint)')),
     h('div', { class: 'card' },
-      h('h2', {}, '월별 지출'),
-      h('p', {}, '월평균 ', h('span', { class: 'big' }, won(averageMonthly(txs)))),
-      h('p', { class: 'muted' }, '카드대금·저축·받은 돈은 지출에서 제외했습니다(이중 집계 방지). 취소는 원래 결제에서 차감했습니다.'),
-      barChart(totals.map((t) => ({ label: t.month, value: t.total })), { format: won }),
-      h('div', { class: 'row' },
-        h('label', {}, h('input', { type: 'checkbox', checked: !!ui.splitInstallments, onchange: (e) => { ui.splitInstallments = e.target.checked; ctx.go('ledger'); } }), ' 할부 나누기 (할부 결제를 개월 수만큼 월별로 나눠 보기)'))),
-    h('div', { class: 'card' },
-      h('div', { class: 'row' }, h('h2', { style: 'margin:0' }, '카테고리별'), monthSel, h('span', {}, `합계 ${won(row.total)}`)),
-      barChart(Object.entries(row.byCategory).sort((a, b) => b[1] - a[1]).map(([label, value]) => ({ label, value })), { format: won })),
+      h('div', { class: 'row', style: 'margin-top:0' }, h('h2', { style: 'margin:0' }, `${month} 카테고리별`), h('span', { class: 'muted' }, `합계 ${won(row.total)}`)),
+      cats.length ? compositionChart(cats.map(([label, value]) => ({ label, value, color: categoryColor(label) })), { format: won })
+        : h('p', { class: 'muted' }, '이 달에는 지출이 없습니다.'),
+      h('p', { class: 'muted' }, '카드대금·저축·받은 돈은 지출에서 제외했습니다(이중 집계 방지). 취소는 원래 결제에서 차감했습니다.')),
+    h('div', { class: 'grid2' },
+      h('div', { class: 'card' },
+        h('h2', {}, '월별 지출'),
+        barChart(monthRows, { format: won }),
+        h('p', { class: 'muted' }, '막대 색은 카테고리 구성입니다.')),
+      !ui.account && accountNames.length > 1 ? h('div', { class: 'card' },
+        h('h2', {}, `${month} 카드/계좌별`),
+        barChart([...byAccount.entries()].sort((a, b) => b[1] - a[1]).map(([label, value]) => ({
+          label, value, color: ACCOUNT_COLORS[accounts.indexOf(label) % ACCOUNT_COLORS.length],
+        })), { format: won })) : null),
     detailCard,
     rulesCard(ctx),
     keywordCard(ctx),
@@ -136,7 +166,7 @@ function buildDetailCard(ctx, expenses, month) {
     const shown = list.slice(0, MAX_ROWS);
     const detailTable = table(['날짜', '가맹점', '금액', '카테고리', '카드/계좌', '메모'], shown.map((t) => [
         t.date, t.merchant + (t.amount < 0 ? ' (취소)' : ''), won(t.amount), 
-        h('select', { onchange: (e) => changeCategory(t, e.target.value) },
+        h('select', { class: 'cat-select', style: `--c:${categoryColor(t.category ?? '기타')}`, onchange: (e) => changeCategory(t, e.target.value) },
           h('option', { value: '', selected: !t.category }, '미분류(기타)'),
           CATEGORIES.map((c) => h('option', { value: c, selected: c === t.category }, c))),
         t.account || '(이름 없음)',

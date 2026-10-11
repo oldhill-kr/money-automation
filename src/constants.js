@@ -15,5 +15,14 @@ export const CATEGORIES = [
   '통신', '보험', '문화·여가', '여행', '교육', '경조사·선물', '생활', '기타',
 ];
 
+// 카테고리·계좌 색(라이트·다크 모두에서 읽히는 중간 채도).
+export const CATEGORY_COLORS = {
+  식비: '#f59e0b', 카페: '#b45309', 배달: '#ef4444', 교통: '#3b82f6', 쇼핑: '#ec4899', 구독: '#8b5cf6',
+  의료: '#14b8a6', '주거·공과금': '#64748b', 통신: '#06b6d4', 보험: '#84cc16', '문화·여가': '#f97316',
+  여행: '#0ea5e9', 교육: '#6366f1', '경조사·선물': '#d946ef', 생활: '#22c55e', 기타: '#94a3b8',
+};
+export const categoryColor = (name) => CATEGORY_COLORS[name] || CATEGORY_COLORS.기타;
+export const ACCOUNT_COLORS = ['#3b6ff5', '#22c55e', '#f59e0b', '#ec4899', '#8b5cf6', '#14b8a6', '#ef4444', '#06b6d4'];
+
 // 외화 거래는 이 고정 환율로 추정해서 원화로 바꾸고 estimated 표시를 한다.
 export const USD_KRW = 1400;
