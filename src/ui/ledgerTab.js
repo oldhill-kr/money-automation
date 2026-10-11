@@ -72,12 +72,12 @@ export function render(el, ctx) {
       kpi('월평균', won(averageMonthly(txs)), `${totals.length}개월 기준`, 'var(--amber)'),
       topCat ? kpi('가장 큰 카테고리', topCat[0], `${won(topCat[1])} · ${((topCat[1] / row.total) * 100).toFixed(0)}%`, categoryColor(topCat[0]))
         : kpi('가장 큰 카테고리', '-', null, 'var(--faint)')),
-    h('div', { class: 'card' },
-      h('div', { class: 'row', style: 'margin-top:0' }, h('h2', { style: 'margin:0' }, `${month} 카테고리별`), h('span', { class: 'muted' }, `합계 ${won(row.total)}`)),
-      cats.length ? compositionChart(cats.map(([label, value]) => ({ label, value, color: categoryColor(label) })), { format: won })
-        : h('p', { class: 'muted' }, '이 달에는 지출이 없습니다.'),
-      h('p', { class: 'muted' }, '카드대금·저축·받은 돈은 지출에서 제외했습니다(이중 집계 방지). 취소는 원래 결제에서 차감했습니다.')),
-    h('div', { class: 'grid2' },
+    h('div', { class: 'grid3' },
+      h('div', { class: 'card' },
+        h('h2', {}, `${month} 카테고리별`),
+        cats.length ? compositionChart(cats.map(([label, value]) => ({ label, value, color: categoryColor(label) })), { format: won, limit: 6, compact: true })
+          : h('p', { class: 'muted' }, '이 달에는 지출이 없습니다.'),
+        h('p', { class: 'muted' }, `합계 ${won(row.total)}`)),
       h('div', { class: 'card' },
         h('h2', {}, '월별 지출'),
         barChart(monthRows, { format: won }),
@@ -87,6 +87,7 @@ export function render(el, ctx) {
         barChart([...byAccount.entries()].sort((a, b) => b[1] - a[1]).map(([label, value]) => ({
           label, value, color: ACCOUNT_COLORS[accounts.indexOf(label) % ACCOUNT_COLORS.length],
         })), { format: won })) : null),
+    h('p', { class: 'muted' }, '카드대금·저축·받은 돈은 지출에서 제외했습니다(이중 집계 방지). 취소는 원래 결제에서 차감했습니다.'),
     detailCard,
     filesCard(ctx),
     rulesCard(ctx),
@@ -129,7 +130,7 @@ function buildDetailCard(ctx, expenses, month) {
   const holder = h('div', {});
   const summary = h('p', { class: 'muted' });
   const search = h('input', { type: 'search', placeholder: '검색: 가맹점·메모·카테고리·날짜(0804)·금액', value: ui.query || '', style: 'min-width:260px' });
-  const title = h('h2', { style: 'margin:0' });
+  const title = h('span', {});
 
   function saveMemo(t, value) {
     const target = t.origin || t; // 할부 나누기로 만든 조각이면 원래 거래에 저장한다
@@ -183,13 +184,17 @@ function buildDetailCard(ctx, expenses, month) {
 
   search.addEventListener('input', () => { ui.query = search.value; draw(); });
   draw();
-  return h('div', { class: 'card' },
-    h('div', { class: 'row' }, title, search,
+  const details = h('details', { class: 'card' },
+    h('summary', {}, title),
+    h('div', { class: 'row' }, search,
       h('button', { class: 'ghost', onclick: () => { ui.query = ''; search.value = ''; draw(); } }, '검색 지우기')),
     h('label', { class: 'muted' },
       h('input', { type: 'checkbox', checked: !!ui.applyAll, onchange: (e) => { ui.applyAll = e.target.checked; } }),
       ' 카테고리를 바꿀 때 같은 가맹점 전체에 적용하고 규칙으로 기억하기 (끄면 이 거래 하나만 바뀝니다)'),
     summary, holder);
+  details.open = ui.detailOpen !== false; // 기본은 펼침, 접으면 다음 화면에서도 접힌 채 유지
+  details.addEventListener('toggle', () => { ui.detailOpen = details.open; });
+  return details;
 }
 
 export function exportLedger(txs) {

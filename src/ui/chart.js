@@ -17,18 +17,23 @@ export function barChart(items, { format = (v) => v.toLocaleString('ko-KR'), col
     }));
 }
 
-// 한 줄 구성 막대 + 항목별 범례(색 점, 막대, 금액, 비율). parts: [{label, value, color}]
-export function compositionChart(parts, { format }) {
-  const list = parts.filter((p) => p.value > 0).sort((a, b) => b.value - a.value);
+// 한 줄 구성 막대 + 항목별 범례. parts: [{label, value, color}]
+// limit: 상위 N개만 보여 주고 나머지는 '그 외'로 합친다. compact: 좁은 칸용(막대 없이 색 점·금액·비율).
+export function compositionChart(parts, { format, limit = 0, compact = false }) {
+  let list = parts.filter((p) => p.value > 0).sort((a, b) => b.value - a.value);
   const total = list.reduce((s, p) => s + p.value, 0) || 1;
+  if (limit && list.length > limit + 1) {
+    const rest = list.slice(limit);
+    list = [...list.slice(0, limit), { label: `그 외 ${rest.length}개`, value: rest.reduce((s, p) => s + p.value, 0), color: '#94a3b8' }];
+  }
   const top = list[0]?.value || 1;
   return h('div', {},
     h('div', { class: 'stack', role: 'img' }, list.map((p) =>
       h('i', { style: `width:${(p.value / total) * 100}%;${css(p.color)}`, title: `${p.label} ${format(p.value)}` }))),
-    h('div', { class: 'legend' }, list.map((p) =>
+    h('div', { class: `legend${compact ? ' compact' : ''}` }, list.map((p) =>
       h('div', { class: 'lg', style: css(p.color) },
-        h('span', { class: 'dot' }), h('span', {}, p.label),
-        h('span', { class: 'bar' }, h('i', { style: `width:${(p.value / top) * 100}%` })),
+        h('span', { class: 'dot' }), h('span', { class: 'nm' }, p.label),
+        compact ? null : h('span', { class: 'bar' }, h('i', { style: `width:${(p.value / top) * 100}%` })),
         h('span', { class: 'amt' }, format(p.value)),
         h('span', { class: 'pct' }, `${((p.value / total) * 100).toFixed(1)}%`)))));
 }
