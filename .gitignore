@@ -1,2 +1,11 @@
 .superpowers/
 node_modules/
+
+# claude-sync safety
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+node_modules/
+__pycache__/
