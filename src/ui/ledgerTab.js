@@ -3,6 +3,7 @@ import { barChart, compositionChart } from './chart.js';
 import { monthlyTotals, averageMonthly, splitInstallments } from '../ledger.js';
 import { unclassifiedCard, rulesCard, keywordCard } from './classifyCards.js';
 import { learn, merchantKey } from '../classifier.js';
+import { filesCard } from './filesCard.js';
 import { CATEGORIES, categoryColor, ACCOUNT_COLORS } from '../constants.js';
 
 export function render(el, ctx) {
@@ -87,6 +88,7 @@ export function render(el, ctx) {
           label, value, color: ACCOUNT_COLORS[accounts.indexOf(label) % ACCOUNT_COLORS.length],
         })), { format: won })) : null),
     detailCard,
+    filesCard(ctx),
     rulesCard(ctx),
     keywordCard(ctx),
     unclassifiedCard(ctx));

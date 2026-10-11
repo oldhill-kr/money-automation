@@ -115,22 +115,46 @@ export function render(el, ctx) {
     });
     const { merged, added, duplicates } = mergeTransactions(ctx.data.transactions, rows);
     const unknown = new Set(rows.filter((r) => r.kind === 'expense' && !r.category).map((r) => r.merchant)).size;
+
+    // 중복 점검: ① 전부 이미 반영된 파일 ② 같은 파일 이름 ③ 다른 카드/계좌 이름으로 이미 들어간 같은 거래
+    const fresh = merged.slice(ctx.data.transactions.length);
+    const allDuplicate = rows.length > 0 && added === 0;
+    const sameName = ctx.data.transactions.some((t) => t.source === source);
+    const loose = new Map();
+    for (const t of ctx.data.transactions) {
+      const k = `${t.date}|${t.merchant}|${t.amount}`;
+      if (!loose.has(k)) loose.set(k, new Set());
+      loose.get(k).add(t.account);
+    }
+    const otherAccounts = new Set();
+    let crossDup = 0;
+    for (const t of fresh) {
+      const hit = loose.get(`${t.date}|${t.merchant}|${t.amount}`);
+      if (hit && ![...hit].includes(t.account)) { crossDup += 1; hit.forEach((a) => otherAccounts.add(a)); }
+    }
+    const warn = [];
+    if (allDuplicate) warn.push(`이미 모두 반영된 파일입니다. 같은 거래 ${duplicates}건이 이미 있어서 새로 추가할 거래가 없습니다.`);
+    else if (sameName) warn.push(`같은 이름의 파일이 이미 반영돼 있습니다. 겹치는 ${duplicates}건은 빼고 새 거래 ${added}건만 추가됩니다.`);
+    if (crossDup && !allDuplicate && crossDup >= Math.max(1, Math.round(added * 0.5))) {
+      warn.push(`새 거래 ${added}건 중 ${crossDup}건이 다른 카드/계좌(${[...otherAccounts].join(', ')})에 이미 있는 거래와 같습니다. 같은 파일을 다른 이름으로 올린 것이라면 '취소'하고 이름을 맞춰 다시 올려 주세요.`);
+    }
     panel.replaceChildren(h('div', { class: 'card' },
       h('h2', {}, `${source} → "${account}"`),
       h('p', {}, `새로 추가 ${added}건 · 이미 있는 거래 ${duplicates}건 · 읽지 못한 행 ${result.skipped.length}개`),
+      warn.map((w) => h('div', { class: 'notice warn' }, w)),
       unknown ? h('p', { class: 'muted' }, `분류를 모르는 가맹점 ${unknown}곳은 가계부 탭에서 한 번만 알려 주면 기억합니다.`) : null,
       result.skipped.length ? h('details', {}, h('summary', {}, '읽지 못한 행 보기'),
         table(['행', '이유'], result.skipped.slice(0, 50).map((s) => [s.row, s.reason]))) : null,
       rows.some((r) => r.estimated) ? h('p', { class: 'muted' }, '외화 결제는 고정 환율로 추정한 금액입니다.') : null,
       h('div', { class: 'row' },
-        h('button', { class: 'primary', onclick: async () => {
+        allDuplicate ? null : h('button', { class: 'primary', onclick: async () => {
           ctx.data.transactions = merged;
           if (userMapping) ctx.data.rules.mappings = { ...ctx.data.rules.mappings, [account]: mapping };
           panel.replaceChildren();
           await ctx.save(); // 화면을 다시 그리지 않고 저장만: 대기 중인 다음 파일이 사라지지 않게
           if (queue.length) done(); else { busy = false; ctx.go('ledger'); }
         } }, '반영하기'),
-        h('button', { class: 'ghost', onclick: () => { panel.replaceChildren(); done(); } }, '취소'))));
+        h('button', { class: 'ghost', onclick: () => { panel.replaceChildren(); done(); } }, allDuplicate ? '닫기' : '취소'))));
   }
 
   el.append(drop, h('div', { class: 'upload-extra' }, '카드/계좌 이름(파일 1개일 때):', accountInput, '비우면 파일 이름을 씁니다. 겹치는 기간의 거래는 한 번만 반영돼요.'), panel);
