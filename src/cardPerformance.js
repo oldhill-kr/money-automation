@@ -34,3 +34,13 @@ export function cardReport(txs, rule, month) {
   const missedBenefit = Object.values(missedByCategory).reduce((s, v) => s + v, 0);
   return { met, spent, remaining, missedBenefit, missedByCategory };
 }
+
+export const emptyCard = () => ({ name: '', minPrevMonthSpend: 300000, benefits: {}, accounts: [] });
+
+// 예전 저장본은 카드 한 장(settings.cardRule)만 있었다. cards 목록으로 옮긴다.
+export function migrateCards(settings = {}) {
+  const fill = (c) => ({ ...emptyCard(), ...c, benefits: { ...(c.benefits || {}) }, accounts: [...(c.accounts || [])] });
+  if (Array.isArray(settings.cards)) return settings.cards.map(fill);
+  const old = settings.cardRule;
+  return old && (old.name || (old.accounts && old.accounts.length)) ? [fill(old)] : [];
+}

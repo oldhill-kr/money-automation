@@ -10,7 +10,14 @@ export const MODES = {
 };
 
 const META_KEY = 'sync';
-const fresh = () => ({ mode: 'browser', handle: null, folderName: '', revision: 0, savedAt: null, dirty: false, connected: true });
+const BASE_KEY = 'syncBase';
+const fresh = () => ({ mode: 'browser', handle: null, folderName: '', revision: 0, savedAt: null, dirty: false, connected: true, base: null });
+
+// 마지막으로 폴더와 맞춘 시점의 거래 목록. 충돌 때 "내가 바꾼 것"만 골라내는 기준이다.
+async function saveBase(ctx, transactions) {
+  ctx.sync.base = transactions;
+  try { await setMeta(BASE_KEY, transactions); } catch { /* 없으면 합치기만 한다 */ }
+}
 
 async function persist(ctx) {
   const { mode, handle, folderName, revision, savedAt, dirty } = ctx.sync;
@@ -26,6 +33,7 @@ export async function initSync(ctx) {
   try { meta = await getMeta(META_KEY); } catch { meta = null; }
   if (!meta || meta.mode === 'browser' || !meta.handle || !folderSupported()) { ctx.refreshLock(); return; }
   Object.assign(ctx.sync, meta, { connected: false });
+  try { ctx.sync.base = (await getMeta(BASE_KEY)) || null; } catch { ctx.sync.base = null; }
   try {
     if (await hasPermission(meta.handle, false)) await attach(ctx);
   } catch (e) { ctx.alert(`폴더를 읽지 못했습니다: ${e.message}`); }
@@ -49,6 +57,7 @@ async function attach(ctx) {
   }
   ctx.setData(remote.state);
   Object.assign(ctx.sync, { connected: true, revision: remote.revision, savedAt: remote.savedAt });
+  await saveBase(ctx, ctx.data.transactions);
   await persist(ctx);
 }
 
@@ -64,8 +73,9 @@ async function pushOut(ctx, opts = {}) {
   const s = ctx.sync;
   if (!s.connected) { s.dirty = true; await persist(ctx); ctx.refreshLock(); return; }
   try {
-    const r = await pushToFolder(s.handle, ctx.data, s.revision, opts);
+    const r = await pushToFolder(s.handle, ctx.data, s.revision, { ...opts, base: s.base });
     Object.assign(s, { revision: r.revision, savedAt: r.savedAt, dirty: false });
+    await saveBase(ctx, r.state.transactions);
     if (r.merged) {
       ctx.setData(r.state);
       ctx.alert(`다른 컴퓨터에서 저장한 내용과 합쳤어요(새로 들어온 거래 ${r.added}건).`);
@@ -89,6 +99,7 @@ export async function refreshFromFolder(ctx) {
     if (!remote) return;
     ctx.setData(remote.state);
     Object.assign(s, { revision: remote.revision, savedAt: remote.savedAt });
+    await saveBase(ctx, ctx.data.transactions);
     await persist(ctx);
     await ctx.cache();
     ctx.refresh();

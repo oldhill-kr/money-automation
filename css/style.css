@@ -169,3 +169,16 @@ ul.insights { margin: 4px 0 0; padding-left: 20px; } ul.insights li { margin: 5p
 .sort-btn .arrow { margin-left: 4px; font-size: 10px; color: var(--faint); }
 .sort-btn.on { color: var(--text); }
 .sort-btn.on .arrow { color: var(--accent); }
+
+/* ---- 예산 진행 막대 ---- */
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--c, var(--accent)); }
+.pbar { height: 10px; border-radius: 6px; background: var(--line); overflow: hidden; }
+.pbar i { display: block; height: 100%; border-radius: 6px; background: var(--green); }
+.pbar.warn i { background: var(--amber); }
+.pbar.over i { background: var(--red); }
+.warn { color: var(--amber); }
+.duo { display: grid; gap: 3px; }
+.duo i { display: block; height: 7px; border-radius: 4px; min-width: 2px; }
+.duo .in { background: var(--accent); }
+.duo .out { background: var(--amber); }
+.rule-box { border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 10px 0; background: var(--panel-2); }

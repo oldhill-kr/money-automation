@@ -7,6 +7,7 @@ const TAB_USES = {
   ledger: { account: true, month: true, split: true },
   monthly: { account: true, month: true, split: false },
   card: { account: false, month: true, split: false },
+  budget: { account: false, month: true, split: false },
 };
 
 export function renderToolbar(el, ctx) {

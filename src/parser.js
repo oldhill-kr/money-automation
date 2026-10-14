@@ -3,6 +3,10 @@ import { USD_KRW } from './constants.js';
 
 // 열 이름 후보. 새 카드사 양식을 지원하려면 여기에 단어만 추가하면 된다.
 const HEADER_WORDS = {
+  // 지역화폐(동백전) 캐시백·지원금 열. 취소·금액보다 먼저 확인한다.
+  cashback: /적립\s*캐시백|캐시백\s*적립|적립금/,
+  cashbackUsed: /사용\s*캐시백|캐시백\s*사용/,
+  subsidyUsed: /사용\s*지원금|지원금\s*사용/,
   // '거래구분'(결제·결제취소·충전) 열도 취소/충전 표시 열로 쓴다.
   cancel: /취소|거래구분|거래유형/,
   installment: /할부(개월|기간|월)/,
@@ -54,7 +58,7 @@ export function normalizeAmount(v) {
 }
 
 const fieldOf = (text) => {
-  for (const f of ['cancel', 'installment', 'withdraw', 'deposit', 'amount', 'date', 'merchant']) {
+  for (const f of ['cashback', 'cashbackUsed', 'subsidyUsed', 'cancel', 'installment', 'withdraw', 'deposit', 'amount', 'date', 'merchant']) {
     if (HEADER_WORDS[f].test(text)) return f;
   }
   return null;
@@ -111,11 +115,23 @@ export function parseRows(rows, { mapping, account, source }) {
     if (mark.includes('취소')) canceled = true;
     if (canceled && direction === 'in') canceled = false; // 입금 쪽 취소 표시는 지출 상쇄가 아니다
 
+    // 지역화폐 캐시백·지원금: 열이 있으면 숫자로 기록한다('-'는 0). 취소 행의 사용 캐시백은 적립 캐시백의 회수다.
+    const money = (f) => (c[f] !== undefined ? (normalizeAmount(row[c[f]]) ?? 0) : undefined);
+    let cashback = money('cashback'), cashbackUsed = money('cashbackUsed'), subsidyUsed = money('subsidyUsed');
+    if (canceled && direction === 'out') {
+      if (cashback !== undefined || cashbackUsed !== undefined) { const back = Math.max(cashback || 0, cashbackUsed || 0); cashback = back ? -back : 0; }
+      if (cashbackUsed !== undefined) cashbackUsed = 0;
+      if (subsidyUsed !== undefined) subsidyUsed = subsidyUsed ? -subsidyUsed : 0;
+    }
+
     const tx = {
       date, merchant: String(row[c.merchant] ?? '').trim(), amount, currency: 'KRW',
       account, kind: 'expense', category: null, canceled, source, direction,
     };
     if (estimated) tx.estimated = true;
+    if (cashback !== undefined) tx.cashback = cashback;
+    if (cashbackUsed !== undefined) tx.cashbackUsed = cashbackUsed;
+    if (subsidyUsed !== undefined) tx.subsidyUsed = subsidyUsed;
     const months = c.installment !== undefined ? parseInt(row[c.installment], 10) : NaN;
     if (months > 1) tx.installmentMonths = months;
     transactions.push(direction === 'out' ? negateCancel(tx) : tx);

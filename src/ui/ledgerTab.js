@@ -2,6 +2,7 @@ import { h, won, table, put } from './dom.js';
 import { barChart, compositionChart } from './chart.js';
 import { monthlyTotals, averageMonthly, splitInstallments } from '../ledger.js';
 import { unclassifiedCard } from './classifyCards.js';
+import { manualForm } from './manualForm.js';
 import { learn, merchantKey } from '../classifier.js';
 import { DEFAULT_SORT, nextSort, sortRows } from '../sortRows.js';
 import { CATEGORIES, categoryColor, ACCOUNT_COLORS } from '../constants.js';
@@ -77,7 +78,8 @@ export function render(el, ctx) {
         h('h2', {}, '월별 지출'),
         barChart([...monthRows].reverse(), { format: won }),
         h('p', { class: 'muted' }, '막대 색은 카테고리 구성입니다. 최근 달이 위에 있습니다.'))),
-    h('p', { class: 'muted' }, '카드대금·저축·받은 돈은 지출에서 제외했습니다(이중 집계 방지). 취소는 원래 결제에서 차감했습니다.'),
+    h('p', { class: 'muted' }, '카드대금·저축·충전·본인 이체·받은 돈은 지출에서 제외했습니다(이중 집계 방지). 취소는 원래 결제에서 차감했습니다.'),
+    manualForm(ctx),
     detailCard,
     unclassifiedCard(ctx));
 }
@@ -127,6 +129,17 @@ function buildDetailCard(ctx, expenses, month) {
     ctx.save();
   }
 
+  // 거래 한 건 삭제. 할부 나누기로 만든 조각이면 원래 거래(전체 할부)가 지워진다.
+  async function deleteOne(t) {
+    const target = t.origin || t;
+    const note = t.origin ? ' (할부 나누기 조각이라 원래 거래 전체가 지워집니다)' : '';
+    if (!confirm(`${target.date} ${target.merchant} ${won(target.amount)} 거래를 삭제할까요?${note}`)) return;
+    ctx.data.transactions = ctx.data.transactions.filter((x) => x !== target);
+    const y = window.scrollY;
+    await ctx.commit();
+    window.scrollTo(0, y);
+  }
+
   // 카테고리 변경: 기본은 이 거래 하나만, 체크하면 같은 가맹점 전체에 적용하고 규칙으로 기억한다.
   async function changeCategory(t, value) {
     const category = value || null;
@@ -166,7 +179,7 @@ function buildDetailCard(ctx, expenses, month) {
           onclick: () => { ui.sort = nextSort(sort, key); draw(); },
         }, label, h('span', { class: 'arrow' }, on ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'));
       });
-    const detailTable = table(heads, shown.map((t) => [
+    const detailTable = table([...heads, ''], shown.map((t) => [
         t.date, t.merchant + (t.amount < 0 ? ' (취소)' : ''), won(t.amount), 
         h('select', { class: 'cat-select', style: `--c:${categoryColor(t.category ?? '기타')}`, onchange: (e) => changeCategory(t, e.target.value) },
           h('option', { value: '', selected: !t.category }, '미분류(기타)'),
@@ -174,6 +187,7 @@ function buildDetailCard(ctx, expenses, month) {
         t.account || '(이름 없음)',
         h('button', { class: 'ghost memo-btn', title: t.memo || '메모 추가',
           onclick: () => openMemoDialog(t, (value) => { saveMemo(t, value); draw(); }) }, t.memo || '＋ 메모'),
+        h('button', { class: 'ghost del-btn', title: '이 거래 삭제', 'aria-label': `${t.merchant} 삭제`, onclick: () => deleteOne(t) }, '✕'),
       ]));
     detailTable.classList.add('center');
     holder.replaceChildren(

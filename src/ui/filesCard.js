@@ -28,7 +28,7 @@ export function removeGroup(txs, group) {
 // 파일의 거래를 다른 카드/계좌(그룹)로 옮긴다. 이름만 바꾸므로 거래 내용·분류·메모는 그대로다.
 export function renameGroup(txs, group, newAccount) {
   const match = (t) => (t.source || NO_SOURCE) === group.source && (t.account || '(이름 없음)') === group.account;
-  return txs.map((t) => (match(t) ? { ...t, account: newAccount } : t));
+  return txs.map((t) => (match(t) ? { ...t, account: newAccount, origAccount: t.origAccount ?? t.account } : t));
 }
 
 // 카드 실적 규칙의 계좌 목록이 옛 이름을 가리키고, 그 이름의 거래가 더 남아 있지 않으면 새 이름으로 바꿔 준다.
@@ -57,7 +57,7 @@ export function filesCard(ctx, { open = false } = {}) {
 (같은 이름의 그룹이 있으면 한 그룹으로 합쳐집니다)`)) { input.value = g.account; return; }
       const st = ctx.data.settings;
       ctx.data.transactions = renameGroup(ctx.data.transactions, g, next);
-      st.cardRule.accounts = followRename(st.cardRule.accounts, g.account, next, ctx.data.transactions);
+      st.cards.forEach((card) => { card.accounts = followRename(card.accounts, g.account, next, ctx.data.transactions); });
       await finish(`'${g.source}' 거래 ${g.count}건을 "${next}" 그룹으로 옮겼습니다.`);
     } });
     return [

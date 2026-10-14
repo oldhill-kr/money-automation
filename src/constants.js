@@ -9,7 +9,7 @@ export const SCHEMA_VERSION = 1;
 export const EMERGENCY_MONTHS = 3;
 export const SPEND_CUT_RATE = 0.1;
 
-export const KINDS = ['expense', 'cardPayment', 'saving', 'income'];
+export const KINDS = ['expense', 'cardPayment', 'saving', 'income', 'transfer'];
 export const CATEGORIES = [
   '식비', '카페', '배달', '교통', '쇼핑', '구독', '의료', '주거·공과금',
   '통신', '보험', '문화·여가', '여행', '교육', '경조사·선물', '생활', '기타',

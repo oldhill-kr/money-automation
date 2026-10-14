@@ -6,6 +6,7 @@ import { mergeTransactions } from '../store.js';
 const FIELDS = [
   ['date', '날짜 열', true], ['merchant', '가맹점/내용 열', true], ['amount', '금액 열', false],
   ['withdraw', '출금 열', false], ['deposit', '입금 열', false], ['cancel', '취소 표시 열', false], ['installment', '할부개월 열', false],
+  ['cashback', '적립 캐시백 열', false], ['cashbackUsed', '사용 캐시백 열', false], ['subsidyUsed', '사용 지원금 열', false],
 ];
 
 // 파일 이름에서 날짜·번호를 떼어 같은 카드의 월별 파일이 한 계좌로 합쳐지게 한다.

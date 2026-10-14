@@ -1,7 +1,8 @@
 import { loadState, saveState } from './db.js';
 import { h } from './ui/dom.js';
 import { negateCancel } from './parser.js';
-import { classify } from './classifier.js';
+import { classify, isTransfer } from './classifier.js';
+import { migrateCards } from './cardPerformance.js';
 import { MODES, initSync, pushSync, reconnect, refreshFromFolder } from './syncController.js';
 import * as upload from './ui/upload.js';
 import * as ledgerTab from './ui/ledgerTab.js';
@@ -10,6 +11,8 @@ import * as cardTab from './ui/cardTab.js';
 import * as taxTab from './ui/taxTab.js';
 import * as splitTab from './ui/splitTab.js';
 import * as monthlyTab from './ui/monthlyBriefingTab.js';
+import * as budgetTab from './ui/budgetTab.js';
+import * as cashflowTab from './ui/cashflowTab.js';
 import * as settings from './ui/settings.js';
 import { initThemeButton } from './theme.js';
 import { renderToolbar } from './ui/toolbar.js';
@@ -17,6 +20,7 @@ import { renderToolbar } from './ui/toolbar.js';
 const TABS = [
   ['ledger', '① 가계부', ledgerTab], ['leaks', '② 새는 돈', leaksTab], ['card', '③ 카드 실적', cardTab],
   ['tax', '④ 연말정산', taxTab], ['split', '⑤ 통장 쪼개기', splitTab], ['monthly', '⑥ 월간 브리핑', monthlyTab],
+  ['budget', '⑦ 예산', budgetTab], ['cashflow', '⑧ 수입·저축', cashflowTab],
   ['settings', '설정·백업', settings],
 ];
 
@@ -25,6 +29,8 @@ export const DEFAULT_SETTINGS = {
   salaryDay: 25, cutPercent: 10, emergencyMonths: 3,
   cardRule: { name: '', minPrevMonthSpend: 300000, benefits: { 카페: 0.1, 배달: 0.05, 교통: 0.1 }, accounts: [] },
   glasses: 0, donation: 0, gymAmount: 0,
+  budgets: {}, // 카테고리별 월 예산(원)
+  cards: [],   // 카드 혜택 규칙 목록(여러 장). cardRule은 예전 저장본 호환용이라 더 쓰지 않는다.
 };
 
 const ctx = {
@@ -68,6 +74,8 @@ export function normalize(d) {
   const rules = { categories: {}, mappings: {}, keywords: {}, ...(d.rules || {}) };
   // 예전에 저장된 취소 거래도 마이너스 금액으로 바로잡고, 분류가 비어 있는 지출은 현재 규칙으로 다시 분류한다.
   const transactions = (d.transactions || []).map((raw) => {
+    // 선불·지역화폐 충전, 본인 이체는 지출·수입이 아니다(예전에 올린 거래도 바로잡는다).
+    if (raw.kind !== 'transfer' && isTransfer(raw.merchant)) return { ...raw, kind: 'transfer', category: null };
     const t = raw.kind === 'expense' || raw.kind === undefined ? negateCancel(raw) : raw;
     if (t.kind === 'expense' && !t.category) {
       const c = classify(t, rules);
@@ -78,7 +86,12 @@ export function normalize(d) {
   return {
     transactions,
     rules,
-    settings: { ...DEFAULT_SETTINGS, ...(d.settings || {}), cardRule: { ...DEFAULT_SETTINGS.cardRule, ...(d.settings?.cardRule || {}) } },
+    settings: {
+      ...DEFAULT_SETTINGS, ...(d.settings || {}),
+      cardRule: DEFAULT_SETTINGS.cardRule,
+      cards: migrateCards(d.settings || {}),
+      budgets: { ...(d.settings?.budgets || {}) },
+    },
   };
 }
 

@@ -26,6 +26,15 @@ const PATTERNS = [
   ['주거·공과금', new RegExp(`광역시|특별시|특별자치|시청|도청|군청|구청|교육청|세무서|지방세|세외수입|과태료|^(${SIDO})(특별시|광역시|도)?\s*[가-힣]{1,5}(군|구|시)(청)?(\s|$)`)],
   ['쇼핑', /쇼핑|아울렛|아울롯/],
 ];
+// 내 돈이 한 주머니에서 다른 주머니로 옮겨 간 것(선불·지역화폐 충전, 본인 계좌 이체)은 지출이 아니다.
+// 실제 지출은 충전한 돈을 쓰는 결제 쪽에서 잡힌다. 교통카드 충전은 쓴 내역이 따로 없어 지출로 둔다.
+const POCKET = '동백전|지역화폐|페이머니|토스머니|카카오머니|네이버페이|카카오페이|토스페이|선불|상품권|포인트';
+const TRANSFER = [
+  new RegExp(`(${POCKET}).*충전|충전.*(${POCKET})`),
+  /(본인|내\s?계좌|자기|계좌간)\s?이체/,
+];
+export const isTransfer = (merchant) => TRANSFER.some((re) => re.test(String(merchant ?? '')));
+
 const CARD_PAYMENT = ['카드대금', '카드결제', '카드값', '결제대금'];
 const SAVING = ['적금', '예금', '청약', '저축'];
 
@@ -53,6 +62,7 @@ export function merchantKey(name) {
 
 export function classify(t, rules) {
   const m = t.merchant || '';
+  if (isTransfer(m)) return { kind: 'transfer', category: null, unknown: false };
   if (t.direction === 'in') {
     return { kind: 'income', category: null, unknown: false, isSalary: /급여|월급|salary/i.test(m) };
   }

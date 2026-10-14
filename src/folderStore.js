@@ -1,6 +1,6 @@
 // 사용자가 고른 폴더(내 PC 폴더 또는 구글 드라이브 데스크톱 폴더)에 가계부 데이터를 파일로 둔다.
 // 폴더 읽기·쓰기만 다루고 화면은 모른다. dir은 FileSystemDirectoryHandle(테스트에서는 같은 모양의 가짜).
-import { exportBackup, mergeTransactions, migrate, validateBackup } from './store.js';
+import { exportBackup, mergeTransactions, migrate, threeWayMerge, validateBackup } from './store.js';
 
 export const DATA_FILE = 'money-data.json';
 export const PREV_FILE = 'money-data.prev.json';
@@ -49,11 +49,14 @@ async function writeFolder(dir, state, revision) {
 }
 
 // 저장한다. 내가 마지막으로 본 revision보다 폴더의 revision이 높으면(다른 컴퓨터가 먼저 저장)
-// 거래는 중복 없이 합치고 규칙·설정은 폴더 쪽을 따른다. force면 무조건 내 데이터로 덮어쓴다(전체 삭제·백업 복원).
-export async function pushToFolder(dir, state, knownRevision, { force = false } = {}) {
+// 이 컴퓨터가 바꾼 거래만 폴더의 최신 데이터에 얹고(base가 있으면 삭제도 반영), 규칙·설정은 폴더 쪽을 따른다.
+// force면 무조건 내 데이터로 덮어쓴다(전체 삭제·백업 복원).
+export async function pushToFolder(dir, state, knownRevision, { force = false, base = null } = {}) {
   const remote = await readFolder(dir);
   if (remote && remote.revision > knownRevision && !force) {
-    const m = mergeTransactions(remote.state.transactions, state.transactions);
+    const m = base
+      ? threeWayMerge(base, state.transactions, remote.state.transactions)
+      : mergeTransactions(remote.state.transactions, state.transactions);
     const merged = { transactions: m.merged, rules: remote.state.rules, settings: remote.state.settings };
     const revision = remote.revision + 1;
     const savedAt = await writeFolder(dir, merged, revision);

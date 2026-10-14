@@ -2,18 +2,73 @@ import { SCHEMA_VERSION } from './constants.js';
 
 export const dedupeKey = (t) => `${t.date}|${t.merchant}|${t.amount}|${t.account}`;
 
+const keyWith = (t, account) => `${t.date}|${t.merchant}|${t.amount}|${account}`;
+
 // 같은 키의 거래는 개수만큼만 합친다: 같은 파일 안의 동일 거래 2건은 둘 다 남고,
 // 겹치는 기간의 파일을 다시 올리거나 같은 파일을 다시 올리면 늘지 않는다.
+// 그룹(카드/계좌) 이름을 바꾼 거래는 원래 이름(origAccount)으로도 맞춰 보므로, 옛 이름으로 다시 올려도 늘지 않는다.
 export function mergeTransactions(existing, incoming) {
-  const left = new Map();
-  for (const t of existing) left.set(dedupeKey(t), (left.get(dedupeKey(t)) || 0) + 1);
+  const index = new Map();
+  const add = (k, i) => { if (!index.has(k)) index.set(k, []); index.get(k).push(i); };
+  existing.forEach((t, i) => {
+    add(dedupeKey(t), i);
+    if (t.origAccount !== undefined && t.origAccount !== t.account) add(keyWith(t, t.origAccount), i);
+  });
+  const used = new Set();
   const fresh = [];
   let duplicates = 0;
   for (const t of incoming) {
-    const k = dedupeKey(t);
-    if (left.get(k) > 0) { left.set(k, left.get(k) - 1); duplicates++; } else fresh.push(t);
+    const hit = (index.get(dedupeKey(t)) || []).find((i) => !used.has(i));
+    if (hit !== undefined) { used.add(hit); duplicates++; } else fresh.push(t);
   }
   return { merged: [...existing, ...fresh], added: fresh.length, duplicates };
+}
+
+// a에서 b에 있는 만큼(키별 개수) 뺀 나머지.
+export function subtractTransactions(a, b) {
+  const left = new Map();
+  for (const t of b) left.set(dedupeKey(t), (left.get(dedupeKey(t)) || 0) + 1);
+  return a.filter((t) => {
+    const k = dedupeKey(t);
+    if (left.get(k) > 0) { left.set(k, left.get(k) - 1); return false; }
+    return true;
+  });
+}
+
+const groupByKey = (list) => {
+  const m = new Map();
+  for (const t of list) { const k = dedupeKey(t); if (!m.has(k)) m.set(k, []); m.get(k).push(t); }
+  return m;
+};
+
+// 마지막으로 맞춘 시점(base)에서 이 컴퓨터가 바꾼 것(추가·삭제·분류/메모 수정)만 폴더의 최신 데이터(remote)에 얹는다.
+// 그래서 다른 컴퓨터가 먼저 저장했어도, 여기서 지운 거래가 되살아나지 않고 거기서 올린 거래도 사라지지 않는다.
+export function threeWayMerge(base, local, remote) {
+  const addedLocal = subtractTransactions(local, base);
+  const removedLocal = subtractTransactions(base, local);
+  const kept = subtractTransactions(remote, removedLocal);
+
+  // 같은 거래의 카테고리·메모를 이 컴퓨터에서 고쳤다면 그 수정을 따른다.
+  const baseBy = groupByKey(base), localBy = groupByKey(local);
+  const edits = new Map();
+  for (const [k, list] of localBy) {
+    list.forEach((lt, i) => {
+      const bt = baseBy.get(k)?.[i];
+      if (bt && (lt.category !== bt.category || lt.memo !== bt.memo)) edits.set(`${k}#${i}`, { category: lt.category, memo: lt.memo });
+    });
+  }
+  const seen = new Map();
+  const patched = kept.map((t) => {
+    const k = dedupeKey(t), i = seen.get(k) || 0;
+    seen.set(k, i + 1);
+    const e = edits.get(`${k}#${i}`);
+    if (!e) return t;
+    const next = { ...t, category: e.category };
+    if (e.memo) next.memo = e.memo; else delete next.memo;
+    return next;
+  });
+  const m = mergeTransactions(patched, addedLocal);
+  return { merged: m.merged, added: m.added };
 }
 
 // 저장 형식이 바뀌면 여기서 버전별 변환을 추가한다. 현재는 v1뿐이다.

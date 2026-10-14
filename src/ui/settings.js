@@ -1,6 +1,6 @@
 import { h, download, put } from './dom.js';
 import { exportBackup, importBackup } from '../store.js';
-import { parseBenefits, formatBenefits } from '../cardPerformance.js';
+import { parseBenefits, formatBenefits, emptyCard } from '../cardPerformance.js';
 import { makeDemoTransactions } from '../../tests/fixtures.js';
 import { MODES, connectFolder, reconnect, useBrowserOnly } from '../syncController.js';
 import { folderSupported } from '../folderStore.js';
@@ -54,7 +54,7 @@ export function loadDemo(ctx) {
   if (data.transactions.length) return;
   data.transactions = makeDemoTransactions();
   data.settings.annualSalary = 42000000;
-  data.settings.cardRule = { name: '혼잡카드 Plus', minPrevMonthSpend: 300000, benefits: { 카페: 0.1, 배달: 0.05, 교통: 0.1 }, accounts: ['혼잡카드'] };
+  data.settings.cards = [{ name: '혼잡카드 Plus', minPrevMonthSpend: 300000, benefits: { 카페: 0.1, 배달: 0.05, 교통: 0.1 }, accounts: ['혼잡카드'] }];
   data.settings.emergencyNow = 4800000;
   ctx.go('ledger');
   ctx.save();
@@ -62,7 +62,7 @@ export function loadDemo(ctx) {
 
 export function render(el, ctx) {
   const { data } = ctx;
-  const st = data.settings, rule = st.cardRule;
+  const st = data.settings;
   const text = (label, value, onchange, ph) => h('div', { class: 'field' }, label, h('input', { type: 'text', value, placeholder: ph || '', onchange: (e) => onchange(e.target.value.trim()) }));
   const numField = (label, value, onchange, hint) => h('div', { class: 'field' }, label, h('div', {}, h('input', { type: 'number', min: 0, value, onchange: (e) => onchange(Math.max(0, Number(e.target.value) || 0)) }), hint ? h('span', { class: 'muted' }, ` ${hint}`) : null));
   const save = (fn) => (v) => { fn(v); ctx.commit(); };
@@ -78,6 +78,23 @@ export function render(el, ctx) {
     ctx.commit({ force: true });
   } });
 
+
+  // 카드 혜택 규칙: 카드마다 한 벌씩. 카드 실적 탭은 이 목록 전부를 보여 준다.
+  const cardsCard = () => h('div', { class: 'card' }, h('h2', {}, '카드 혜택 규칙'),
+    h('p', { class: 'muted' }, '카드 상품 안내서를 보고 직접 적어 주세요. 카드가 여러 장이면 "카드 추가"로 늘리세요.'),
+    st.cards.map((rule, i) => h('div', { class: 'rule-box' },
+      h('div', { class: 'row' }, h('b', {}, `카드 ${i + 1}${rule.name ? ` · ${rule.name}` : ''}`),
+        h('button', { class: 'danger', style: 'margin-left:auto', onclick: () => {
+          if (!confirm(`'${rule.name || `카드 ${i + 1}`}' 규칙을 삭제할까요? (거래는 그대로입니다)`)) return;
+          st.cards.splice(i, 1);
+          ctx.commit();
+        } }, '카드 삭제')),
+      text('카드 이름', rule.name, save((v) => { rule.name = v; }), '예: 혼잡카드 Plus'),
+      numField('전월 실적 기준', rule.minPrevMonthSpend, save((v) => { rule.minPrevMonthSpend = v; }), '(원)'),
+      text('혜택 (카테고리:%)', formatBenefits(rule.benefits), save((v) => { rule.benefits = parseBenefits(v); }), '카페:10, 배달:5, 교통:10'),
+      text('이 카드로 쓰는 계좌 이름', rule.accounts.join(', '), save((v) => { rule.accounts = v.split(',').map((x) => x.trim()).filter(Boolean); }), '업로드할 때 붙인 이름, 쉼표로 구분'))),
+    h('div', { class: 'row' }, h('button', { class: 'ghost', onclick: () => { st.cards.push(emptyCard()); ctx.commit(); } }, '＋ 카드 추가')));
+
   put(el,
     storageCard(ctx),
     filesCard(ctx, { open: true }),
@@ -86,12 +103,7 @@ export function render(el, ctx) {
     h('div', { class: 'card' }, h('h2', {}, '내 정보'),
       numField('연간 총급여', st.annualSalary || '', save((v) => { st.annualSalary = v; }), '(원) 월급 입금 내역이 없을 때와 연말정산에 씁니다'),
       numField('남는 돈 중 비상금 비율', Math.round(st.emergencyRatio * 100), save((v) => { st.emergencyRatio = Math.min(100, v) / 100; }), '(%) 나머지는 저축·투자')),
-    h('div', { class: 'card' }, h('h2', {}, '카드 혜택 규칙'),
-      h('p', { class: 'muted' }, '카드 상품 안내서를 보고 직접 적어 주세요.'),
-      text('카드 이름', rule.name, save((v) => { rule.name = v; }), '예: 혼잡카드 Plus'),
-      numField('전월 실적 기준', rule.minPrevMonthSpend, save((v) => { rule.minPrevMonthSpend = v; }), '(원)'),
-      text('혜택 (카테고리:%)', formatBenefits(rule.benefits), save((v) => { rule.benefits = parseBenefits(v); }), '카페:10, 배달:5, 교통:10'),
-      text('이 카드로 쓰는 계좌 이름', rule.accounts.join(', '), save((v) => { rule.accounts = v.split(',').map((s) => s.trim()).filter(Boolean); }), '업로드할 때 붙인 이름, 쉼표로 구분')),
+    cardsCard(),
     h('div', { class: 'card' }, h('h2', {}, '백업'),
       h('p', { class: 'muted' }, ctx.sync.mode === 'browser' ? '데이터는 이 브라우저 안에만 있습니다. 브라우저 데이터를 지우거나 PC를 바꾸면 사라지니 가끔 백업 파일을 내려받아 두세요.' : '폴더에도 사본이 있지만, 백업 파일을 따로 내려받아 두면 더 안전합니다.'),
       h('div', { class: 'row' },
